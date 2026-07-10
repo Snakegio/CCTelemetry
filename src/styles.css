@@ -1,0 +1,152 @@
+@import "tailwindcss";
+@import "tailwindcss-primeui";
+/* ── design system (ported 1:1 from the old index.html <style>) ── */
+:root {
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --hairline: rgba(11, 11, 11, 0.10);
+  --series: #2a78d6;
+  --live: #006300;
+  --live-dot: #0ca30c;
+  --live-wash: rgba(12, 163, 12, 0.06);
+  --wash: rgba(42, 120, 214, 0.06);
+  --shadow: 0 1px 2px rgba(11, 11, 11, 0.04), 0 4px 12px rgba(11, 11, 11, 0.04);
+  --s1: #2a78d6;
+  --s2: #1baf7a;
+  --s3: #eda100;
+  --s4: #4a3aa7;
+  --s5: #e34948;
+  --s6: #e87ba4;
+  --s-other: #898781;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --hairline: rgba(255, 255, 255, 0.10);
+    --series: #3987e5;
+    --live: #0ca30c;
+    --live-dot: #0ca30c;
+    --live-wash: rgba(12, 163, 12, 0.08);
+    --wash: rgba(57, 135, 229, 0.10);
+    --shadow: none;
+    --s1: #3987e5;
+    --s2: #199e70;
+    --s3: #c98500;
+    --s4: #9085e9;
+    --s5: #e66767;
+    --s6: #d55181;
+    --s-other: #898781;
+  }
+}
+
+html {
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding: clamp(1rem, 3vw, 2.5rem);
+  line-height: 1.45;
+}
+
+.num {
+  font-family: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+}
+
+/* dot pulse on the live-strip — kept custom because the .25 opacity floor
+   isn't Tailwind's built-in animate-pulse keyframe */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: .25; }
+}
+
+/* chart tooltip must be able to poke out above the panel */
+.chart-panel {
+  overflow: visible;
+}
+
+.chart-wrap svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.gridline {
+  stroke: var(--grid);
+  stroke-width: 1;
+}
+
+.axis-label {
+  fill: var(--muted);
+  font-size: 10px;
+  font-family: ui-monospace, Menlo, Consolas, monospace;
+}
+
+.bar-hit {
+  fill: transparent;
+}
+
+.tooltip {
+  position: absolute;
+  pointer-events: none;
+  z-index: 10;
+  background: var(--ink);
+  color: var(--page);
+  font-size: .72rem;
+  padding: .45rem .6rem;
+  border-radius: 6px;
+  white-space: nowrap;
+  transform: translate(-50%, -105%);
+  line-height: 1.5;
+}
+
+.spark polyline {
+  fill: none;
+  stroke: var(--series);
+  stroke-width: 1.5;
+}
+
+.spark polygon {
+  fill: var(--series);
+  opacity: .12;
+  stroke: none;
+}
+
+/* chart legend + tooltip rows: small colored swatch beside a label */
+.legend-item,
+.tt-row {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+}
+
+.tt-row {
+  display: flex;
+}
+
+.tt-title {
+  font-weight: 600;
+  margin-bottom: .3rem;
+}
+
+.swatch {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex: none;
+  display: inline-block;
+}

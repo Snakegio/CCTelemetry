@@ -1,0 +1,45 @@
+<div class="bg-[var(--surface)] border border-[var(--hairline)] rounded-[10px] [box-shadow:var(--shadow)] overflow-hidden">
+<p-table
+  [value]="rowObjects()"
+  [tableStyle]="{ 'min-width': '100%' }"
+  class="text-[.85rem]"
+>
+  <ng-template #header>
+    <tr>
+      @for (col of columns(); track $index) {
+        @let field = 'c' + $index + '.' + (col.sortable && col.align === 'right' ? 'sortValue' : 'value');
+        <th
+          [pSortableColumn]="col.sortable ? field : undefined"
+          class="text-[.68rem] font-semibold text-[var(--muted)] uppercase tracking-[.08em]"
+          [class.text-right]="col.align === 'right'"
+          [class.text-left]="col.align !== 'right'"
+        >
+          {{ col.label }}
+          @if (col.sortable) {
+            <p-sort-icon [field]="field" />
+          }
+        </th>
+      }
+    </tr>
+  </ng-template>
+  <ng-template #body let-row>
+    <tr>
+      @for (col of columns(); track $index) {
+        @let cell = row['c' + $index];
+        <td [class]="cellClass(cell)" [title]="cell.title || null">
+          @if (cell.muted) {
+            <span class="text-[var(--muted)] text-[.72rem] block whitespace-nowrap overflow-hidden text-ellipsis max-w-[34ch]">{{ cell.value }}</span>
+          } @else if (cell.strong) {
+            <span class="font-medium whitespace-nowrap overflow-hidden text-ellipsis block">{{ cell.value }}</span>
+            @if (cell.sub) {
+              <span class="text-[var(--muted)] text-[.72rem] block whitespace-nowrap overflow-hidden text-ellipsis max-w-[34ch]">{{ cell.sub }}</span>
+            }
+          } @else {
+            {{ cell.value }}
+          }
+        </td>
+      }
+    </tr>
+  </ng-template>
+</p-table>
+</div>

@@ -1,0 +1,52 @@
+<div class="max-w-[1600px] mx-auto">
+  <header class="mb-6 flex items-baseline justify-between flex-wrap gap-3">
+    <div class="flex items-baseline gap-3 flex-wrap">
+      <h1 class="text-[1.05rem] font-[650] tracking-[.14em] uppercase m-0">Claude Code · Token Telemetry</h1>
+    </div>
+    <app-filters [projects]="usage()?.projects || []" [filters]="filters()" (filtersChange)="onFilters($event)" />
+  </header>
+
+  <app-warn-banner [show]="!!usage()?.claudeNotFound" />
+
+  @if (usage(); as u) {
+    <app-live-strip [live]="u.liveSession" [visible]="liveVisible()" />
+    <app-stat-tiles [data]="u" />
+    <app-suggestions [suggestions]="suggestionsList()" />
+
+    @if (colorMap(); as cm) {
+      <app-tool-breakdown [byTool]="u.byTool" [colors]="cm" />
+      <app-usage-chart [daily]="u.daily" [colors]="cm" />
+    }
+
+    <div class="grid grid-cols-2 gap-8 mb-9 max-[760px]:grid-cols-1">
+      <div>
+        <div class="text-[.72rem] font-bold tracking-[.13em] uppercase text-[var(--ink-2)] mb-[.6rem] flex items-center gap-2">
+          <span class="w-2 h-2 rounded-sm bg-[var(--series)] flex-none"></span>By project
+        </div>
+        <app-data-table [columns]="projectColumns" [rows]="projectRows()" />
+      </div>
+      <div>
+        <div class="text-[.72rem] font-bold tracking-[.13em] uppercase text-[var(--ink-2)] mb-[.6rem] flex items-center gap-2">
+          <span class="w-2 h-2 rounded-sm bg-[var(--series)] flex-none"></span>By model
+        </div>
+        <app-data-table [columns]="modelColumns" [rows]="modelRows()" />
+      </div>
+    </div>
+
+    <div class="mb-9">
+      <div
+        class="text-[.72rem] font-bold tracking-[.13em] uppercase text-[var(--ink-2)] mb-[.6rem] flex justify-between items-baseline"
+      >
+        <span class="flex items-center gap-2"
+          ><span class="w-2 h-2 rounded-sm bg-[var(--series)] flex-none"></span>Top sessions</span
+        >
+        <span class="font-normal tracking-normal normal-case text-[var(--muted)] text-[.72rem]">10 most expensive</span>
+      </div>
+      <app-data-table [columns]="sessionColumns" [rows]="sessionRows()" />
+    </div>
+  }
+
+  <footer class="text-[var(--muted)] text-[.72rem] mt-12 text-center">
+    Auto-refreshes every 3 seconds · costs marked * include turns from models without a known price list
+  </footer>
+</div>

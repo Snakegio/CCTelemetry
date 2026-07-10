@@ -1,0 +1,100 @@
+<div class="mb-9">
+  <div
+    class="text-[.72rem] font-bold tracking-[.13em] uppercase text-[var(--ink-2)] mb-[.6rem] flex justify-between items-baseline"
+  >
+    <span class="flex items-center gap-2"
+      ><span class="w-2 h-2 rounded-sm bg-[var(--series)] flex-none"></span>By tool &amp; MCP</span
+    >
+    <span class="font-normal tracking-normal normal-case text-[var(--muted)] text-[.72rem]">click a row to drill down</span>
+  </div>
+  <div class="bg-[var(--surface)] border border-[var(--hairline)] rounded-[10px] [box-shadow:var(--shadow)] overflow-hidden">
+    <div class="flex gap-[2px] h-3 mx-4 mt-4 mb-[.35rem] rounded-[3px] overflow-hidden">
+      @for (seg of shareSegments(); track $index) {
+        <div class="min-w-[3px] transition-[width] duration-300 ease-out" [style.width.%]="seg.pct" [style.background]="seg.color" [title]="seg.title"></div>
+      }
+    </div>
+    <div class="text-[.7rem] text-[var(--muted)] mx-4 mb-3">Share of total tokens by tool</div>
+
+    <p-table [value]="byTool()" dataKey="name" [tableStyle]="{ 'min-width': '100%' }" class="text-[.85rem]">
+      <ng-template #header>
+        <tr>
+          <th class="text-left text-[.68rem] font-semibold text-[var(--muted)] uppercase tracking-[.08em]">Tool</th>
+          <th class="text-right text-[.68rem] font-semibold text-[var(--muted)] uppercase tracking-[.08em]">Tokens</th>
+          <th class="text-right text-[.68rem] font-semibold text-[var(--muted)] uppercase tracking-[.08em]">Calls</th>
+          <th class="text-right text-[.68rem] font-semibold text-[var(--muted)] uppercase tracking-[.08em]">Cost</th>
+        </tr>
+      </ng-template>
+
+      <ng-template #body let-row let-expanded="expanded">
+        <tr [class]="hasDrill(row) ? 'cursor-pointer' : ''" [pRowToggler]="hasDrill(row) ? row : null">
+          <td>
+            <div class="flex items-center gap-2 min-w-0">
+              <span class="text-[var(--muted)] text-[.7rem] w-[.8em] flex-none transition-transform duration-150" [class.rotate-90]="expanded">{{ hasDrill(row) ? '▶' : '' }}</span>
+              <span class="w-[9px] h-[9px] rounded-sm flex-none" [style.background]="colorOf(row.name)"></span>
+              @if (badge(row)) {
+                <span class="text-[.62rem] font-bold tracking-[.06em] text-[var(--series)] border border-current rounded-[3px] px-[.3em] flex-none">{{ badge(row) }}</span>
+              }
+              <span class="font-medium whitespace-nowrap overflow-hidden text-ellipsis" [title]="row.name">{{ label(row) }}</span>
+            </div>
+          </td>
+          <td class="num text-right text-[.82rem]" [title]="fmtExact(row.tokens)">{{ fmtTokens(row.tokens) }}</td>
+          <td class="num text-right text-[.82rem]">{{ row.calls }}</td>
+          <td class="num text-right text-[.82rem]">{{ fmtCost(row.cost, row.costIncomplete) }}</td>
+        </tr>
+      </ng-template>
+
+      <ng-template #expandedrow let-row>
+        <tr>
+          <td colspan="4" class="bg-[var(--wash)] px-[1.1rem] pt-[.9rem] pb-[1.1rem]">
+            @if (row.children && row.children.length) {
+              <table class="w-full border-collapse text-[.8rem]">
+                <thead>
+                  <tr>
+                    <th class="text-left text-[.68rem] font-semibold text-[var(--muted)] uppercase tracking-[.08em] pl-[.6rem] pr-[.9rem] pt-[.6rem] pb-[.4rem] border-b border-b-[var(--grid)]">Server tool</th>
+                    <th class="text-right text-[.68rem] font-semibold text-[var(--muted)] uppercase tracking-[.08em] pl-[.6rem] pr-[.9rem] pt-[.6rem] pb-[.4rem] border-b border-b-[var(--grid)]">Tokens</th>
+                    <th class="text-right text-[.68rem] font-semibold text-[var(--muted)] uppercase tracking-[.08em] pl-[.6rem] pr-[.9rem] pt-[.6rem] pb-[.4rem] border-b border-b-[var(--grid)]">Calls</th>
+                    <th class="text-right text-[.68rem] font-semibold text-[var(--muted)] uppercase tracking-[.08em] pl-[.6rem] pr-[.9rem] pt-[.6rem] pb-[.4rem] border-b border-b-[var(--grid)]">Cost</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (child of row.children; track child.name) {
+                    <tr>
+                      <td class="pl-[.6rem] pr-[.9rem] py-[.4rem] border-b border-b-[var(--grid)]">
+                        <span class="font-medium whitespace-nowrap overflow-hidden text-ellipsis" [title]="child.name">{{ label(child) }}</span>
+                      </td>
+                      <td class="num text-right pl-[.6rem] pr-[.9rem] py-[.4rem] border-b border-b-[var(--grid)]" [title]="fmtExact(child.tokens)">{{ fmtTokens(child.tokens) }}</td>
+                      <td class="num text-right pl-[.6rem] pr-[.9rem] py-[.4rem] border-b border-b-[var(--grid)]">{{ child.calls }}</td>
+                      <td class="num text-right pl-[.6rem] pr-[.9rem] py-[.4rem] border-b border-b-[var(--grid)]">{{ fmtCost(child.cost, child.costIncomplete) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            } @else {
+              <div class="text-[.75rem] text-[var(--ink-2)] mb-2">
+                Average per call: <strong class="num">{{ avgTok(row) }} tokens</strong> · <strong class="num">{{ avgCostStr(row) }}</strong>
+              </div>
+              <table class="w-full border-collapse text-[.8rem]">
+                <thead>
+                  <tr>
+                    <th class="text-left text-[.68rem] font-semibold text-[var(--muted)] uppercase tracking-[.08em] pl-[.6rem] pr-[.9rem] pt-[.6rem] pb-[.4rem] border-b border-b-[var(--grid)]">Project</th>
+                    <th class="text-left text-[.68rem] font-semibold text-[var(--muted)] uppercase tracking-[.08em] pl-[.6rem] pr-[.9rem] pt-[.6rem] pb-[.4rem] border-b border-b-[var(--grid)]">Session</th>
+                    <th class="text-right text-[.68rem] font-semibold text-[var(--muted)] uppercase tracking-[.08em] pl-[.6rem] pr-[.9rem] pt-[.6rem] pb-[.4rem] border-b border-b-[var(--grid)]">Tokens</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (d of row.drilldown.slice(0, 12); track $index) {
+                    <tr>
+                      <td class="px-[.6rem] py-[.4rem] border-b border-b-[var(--grid)]" [title]="d.project">{{ basename(d.project) }}</td>
+                      <td class="num px-[.6rem] py-[.4rem] border-b border-b-[var(--grid)]">{{ d.sessionId.slice(0, 8) }}</td>
+                      <td class="num text-right px-[.6rem] py-[.4rem] border-b border-b-[var(--grid)]">{{ fmtTokens(d.tokens) }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            }
+          </td>
+        </tr>
+      </ng-template>
+    </p-table>
+  </div>
+</div>

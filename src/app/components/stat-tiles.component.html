@@ -1,0 +1,39 @@
+<div class="grid [grid-template-columns:repeat(auto-fit,minmax(190px,1fr))] gap-4 mb-9">
+  <p-card class="relative overflow-hidden">
+    <div class="text-[.7rem] text-[var(--muted)] uppercase tracking-[.1em] mb-[.35rem]">Total tokens</div>
+    <div class="num text-[1.85rem] font-[650] leading-[1.1]">{{ fmtTokens(data().totals.tokens) }}</div>
+    <div class="num text-[.72rem] text-[var(--muted)] mt-[.3rem]">{{ fmtExact(data().totals.tokens) }}</div>
+    @if (spark(); as sp) {
+      <svg class="spark absolute right-3 bottom-[.6rem] opacity-90" width="110" height="30" viewBox="0 0 110 30">
+        <polygon [attr.points]="sp.area"></polygon>
+        <polyline [attr.points]="sp.line"></polyline>
+      </svg>
+    }
+  </p-card>
+
+  <p-card class="relative overflow-hidden">
+    <div class="text-[.7rem] text-[var(--muted)] uppercase tracking-[.1em] mb-[.35rem]">Estimated cost</div>
+    <div class="num text-[1.85rem] font-[650] leading-[1.1]">
+      {{ fmtCost(data().totals.cost, data().totals.costIncomplete) }}
+    </div>
+    <div class="text-[.72rem] text-[var(--muted)] mt-[.3rem]">
+      {{ data().totals.costIncomplete ? 'partial: some models have no price list' : 'all models priced' }}
+    </div>
+  </p-card>
+
+  <p-card class="relative overflow-hidden">
+    <div class="text-[.7rem] text-[var(--muted)] uppercase tracking-[.1em] mb-[.35rem]">Cache hit</div>
+    <div class="num text-[1.85rem] font-[650] leading-[1.1]">{{ data().cacheEfficiency.cacheReadPct.toFixed(1) }}%</div>
+    <div class="text-[.72rem] text-[var(--muted)] mt-[.3rem]">
+      {{ fmtTokens(data().cacheEfficiency.cacheRead) }} tokens served from cache
+    </div>
+  </p-card>
+
+  <p-card class="relative overflow-hidden">
+    <div class="text-[.7rem] text-[var(--muted)] uppercase tracking-[.1em] mb-[.35rem]">Subagents</div>
+    <div class="num text-[1.85rem] font-[650] leading-[1.1]">{{ fmtTokens(data().subagents.tokens) }}</div>
+    <div class="text-[.72rem] text-[var(--muted)] mt-[.3rem]">
+      {{ data().subagents.pct.toFixed(1) }}% of total · {{ fmtCost(data().subagents.cost, data().subagents.costIncomplete) }}
+    </div>
+  </p-card>
+</div>

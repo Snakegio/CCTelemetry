@@ -1,0 +1,40 @@
+<div class="flex items-center gap-3 flex-wrap">
+  <p-selectbutton
+    [options]="ranges"
+    [ngModel]="filters().range"
+    (ngModelChange)="setRange($event)"
+    optionLabel="label"
+    optionValue="key"
+    [allowEmpty]="false"
+  />
+
+  <p-multiselect
+    [options]="projectOptions()"
+    [ngModel]="filters().projects"
+    (ngModelChange)="setProjects($event)"
+    optionLabel="label"
+    optionValue="value"
+    [filter]="true"
+    placeholder="All projects"
+    [showToggleAll]="true"
+    [maxSelectedLabels]="1"
+    selectedItemsLabel="{0} projects"
+    class="text-[.75rem] w-[190px]"
+  />
+
+  @if (showDates()) {
+    <p-datepicker
+      [ngModel]="rangeDates()"
+      (ngModelChange)="setRangeDates($event)"
+      selectionMode="range"
+      [numberOfMonths]="2"
+      [maxDate]="today"
+      dateFormat="yy-mm-dd"
+      [showIcon]="true"
+      [readonlyInput]="true"
+      placeholder="Pick a date range"
+      appendTo="body"
+      class="text-[.75rem] w-[230px]"
+    />
+  }
+</div>

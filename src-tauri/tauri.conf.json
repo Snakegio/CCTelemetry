@@ -1,0 +1,49 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "CCTelemetry",
+  "version": "../package.json",
+  "identifier": "dev.giorgioprivitera.cctelemetry",
+  "build": {
+    "beforeDevCommand": "npm run start",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist/cctelemetry/browser"
+  },
+  "app": {
+    "windows": [
+      {
+        "label": "main",
+        "title": "CCTelemetry — Claude Code Token Usage",
+        "width": 1160,
+        "height": 820,
+        "minWidth": 720,
+        "minHeight": 480,
+        "visible": true
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico",
+      "icons/icon.png"
+    ],
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/Snakegio/CCTelemetry/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDUwMjIyMDE4NERDMEE1QUYKUldTdnBjQk5HQ0FpVUE1dTYxQzl4c1QyUUtwSWxzNklTemtoMFIzd0JpU1BYOW5IbW9zTVB5bXgK"
+    }
+  }
+}

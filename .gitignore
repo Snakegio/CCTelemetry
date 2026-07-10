@@ -1,0 +1,21 @@
+# local Claude Code settings
+.claude/
+CLAUDE.md
+.superpowers
+
+# IDE
+.idea/
+
+.DS_Store
+
+# Tauri app build artifacts
+node_modules/
+src-tauri/target/
+src-tauri/gen/
+src-tauri/resources/__pycache__/
+
+# Angular build artifacts
+/dist/
+/.angular/
+/out-tsc/
+docs/superpowers/

@@ -1,0 +1,27 @@
+[package]
+name = "cctelemetry"
+version = "0.1.5"
+description = "Menu bar / tray app for Claude Code token telemetry"
+license = "MIT"
+edition = "2021"
+
+[lib]
+# The `_lib` suffix keeps the lib name distinct from the `cctelemetry` binary
+# (a name clash breaks on Windows — rust-lang/cargo#8519). staticlib/cdylib are
+# what the Tauri mobile targets link against; rlib is the desktop bin's path in.
+name = "cctelemetry_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = ["tray-icon", "image-png"] }
+tauri-plugin-updater = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+ureq = "2"
+
+[profile.release]
+strip = true
+lto = true

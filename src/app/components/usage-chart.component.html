@@ -1,0 +1,61 @@
+<div class="mb-9">
+  <div
+    class="text-[.72rem] font-bold tracking-[.13em] uppercase text-[var(--ink-2)] mb-[.6rem] flex justify-between items-baseline"
+  >
+    <span class="flex items-center gap-2"
+      ><span class="w-2 h-2 rounded-sm bg-[var(--series)] flex-none"></span>Daily usage — tokens by tool</span
+    >
+    <span class="font-normal tracking-normal normal-case text-[var(--muted)] text-[.72rem]"
+      >last 30 days · survives log cleanup</span
+    >
+  </div>
+  <div class="chart-panel bg-[var(--surface)] border border-[var(--hairline)] rounded-[10px] [box-shadow:var(--shadow)]">
+    <div class="chart-wrap relative px-4 pt-5 pb-2" #wrap>
+      <svg [attr.viewBox]="'0 0 ' + W + ' ' + H">
+        @if (chart().empty) {
+          <text [attr.x]="W / 2" [attr.y]="H / 2" text-anchor="middle" class="axis-label">No data yet</text>
+        } @else {
+          @for (g of chart().gridlines; track $index) {
+            <line [attr.x1]="8" [attr.x2]="W - 8" [attr.y1]="g.y" [attr.y2]="g.y" class="gridline"></line>
+            @if (g.label) {
+              <text [attr.x]="8" [attr.y]="g.labelY" class="axis-label">{{ g.label }}</text>
+            }
+          }
+          @for (bar of chart().bars; track $index) {
+            @for (r of bar.rects; track $index) {
+              <rect [attr.x]="r.x" [attr.y]="r.y" [attr.width]="r.w" [attr.height]="r.h" [attr.fill]="r.fill"></rect>
+            }
+          }
+          @for (hit of chart().hits; track $index) {
+            <rect
+              [attr.x]="hit.x"
+              [attr.y]="hit.y"
+              [attr.width]="hit.w"
+              [attr.height]="hit.h"
+              class="bar-hit"
+              (mouseenter)="enterTip(hit)"
+              (mousemove)="moveTip($event, wrap)"
+              (mouseleave)="hideTip()"
+            ></rect>
+          }
+          @for (lbl of chart().xlabels; track $index) {
+            <text [attr.x]="lbl.x" [attr.y]="lbl.y" text-anchor="middle" class="axis-label">{{ lbl.text }}</text>
+          }
+        }
+      </svg>
+      @if (tip().show) {
+        <div class="tooltip" style="display: block" [style.left.px]="tip().left" [style.top.px]="tip().top">
+          <div class="tt-title">{{ tip().title }}</div>
+          @for (r of tip().rows; track $index) {
+            <div class="tt-row"><span class="swatch" [style.background]="r.color"></span>{{ r.name }}: <strong>{{ fmtTokens(r.v) }}</strong></div>
+          }
+        </div>
+      }
+    </div>
+    <div class="flex gap-[1.1rem] flex-wrap px-4 pt-[.35rem] pb-[.9rem] text-[.74rem] text-[var(--ink-2)]">
+      @for (item of chart().legend; track item.name) {
+        <span class="legend-item"><span class="swatch" [style.background]="item.color"></span>{{ item.name }}</span>
+      }
+    </div>
+  </div>
+</div>
