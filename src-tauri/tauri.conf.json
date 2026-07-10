@@ -40,10 +40,10 @@
   },
   "plugins": {
     "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDVGQzBERjAyQjgzRUIyQzgKUldUSXNqNjRBdC9BWHpWRDY1V2lBZCs2aXdUdlhuMzNncW5wOXFsTDg4eEV0TGhnU3owaG00OEUK",
       "endpoints": [
-        "https://github.com/Snakegio/CCTelemetry/releases/latest/download/latest.json"
-      ],
-      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDUwMjIyMDE4NERDMEE1QUYKUldTdnBjQk5HQ0FpVUE1dTYxQzl4c1QyUUtwSWxzNklTemtoMFIzd0JpU1BYOW5IbW9zTVB5bXgK"
+        "https://github.com/snakegio/CCTelemetry/releases/latest/download/latest.json"
+      ]
     }
   }
 }
