@@ -1,6 +1,6 @@
 [package]
 name = "cctelemetry"
-version = "0.2.0"
+version = "0.2.1"
 description = "Menu bar / tray app for Claude Code token telemetry"
 license = "MIT"
 edition = "2021"
