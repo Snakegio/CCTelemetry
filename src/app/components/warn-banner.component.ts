@@ -8,8 +8,8 @@ import { MessageModule } from 'primeng/message';
     @if (show()) {
       <p-message severity="warn" class="w-full mb-6">
         <span class="text-[.85rem]">
-          Claude Code non è stato trovato su questo computer (cartella
-          <code class="num">~/.claude</code> mancante). Installa Claude Code e autenticati per vedere le statistiche.
+          Claude Code was not found on this computer (missing
+          <code class="num">~/.claude</code> folder). Install Claude Code and sign in to see usage stats.
         </span>
       </p-message>
     }

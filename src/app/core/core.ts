@@ -86,6 +86,8 @@ export interface DailyEntry {
   cost: number;
   costIncomplete: boolean;
   byTool: Record<string, number>;
+  cacheReadTokens: number;
+  subagentTokens: number;
 }
 
 export interface CacheEfficiency {
@@ -251,6 +253,7 @@ function rangeBounds(filters: Filters, now: number): Bounds {
     d.setHours(0, 0, 0, 0);
     return { lower: d.getTime(), upper: Infinity };
   }
+  if (range === '7d') return { lower: now - 7 * 24 * 3600 * 1000, upper: Infinity };
   if (range === '30d') return { lower: now - 30 * 24 * 3600 * 1000, upper: Infinity };
   if (range === 'custom' && filters.from && filters.to) {
     let from = filters.from;
@@ -261,6 +264,26 @@ function rangeBounds(filters: Filters, now: number): Bounds {
     return { lower, upper };
   }
   return { lower: 0, upper: Infinity }; // 'all' (or incomplete 'custom')
+}
+
+// Filters for the period immediately preceding the given range, so callers
+// can compute a "vs previous period" delta. Only defined for ranges with an
+// unambiguous predecessor — 'all'/'custom' have none, so callers should hide
+// the comparison in that case rather than fabricate one.
+export function previousRangeFilters(filters: Filters, now: number = Date.now()): Filters | null {
+  const dayMs = 24 * 3600 * 1000;
+  if (filters.range === 'today') {
+    const d = new Date(now);
+    d.setHours(0, 0, 0, 0);
+    return { ...filters, range: 'custom', from: localDate(new Date(d.getTime() - dayMs).toISOString()), to: localDate(new Date(d.getTime() - dayMs).toISOString()) };
+  }
+  if (filters.range === '7d') {
+    return { ...filters, range: 'custom', from: localDate(new Date(now - 14 * dayMs).toISOString()), to: localDate(new Date(now - 7 * dayMs).toISOString()) };
+  }
+  if (filters.range === '30d') {
+    return { ...filters, range: 'custom', from: localDate(new Date(now - 60 * dayMs).toISOString()), to: localDate(new Date(now - 30 * dayMs).toISOString()) };
+  }
+  return null;
 }
 
 function localDate(iso: string): string {
@@ -404,10 +427,20 @@ export function aggregate(
     // but DOES respect the project filter — see Part A of the design spec
     if (turn.timestamp && (!projectFilter || projectFilter.includes(turn.cwd))) {
       const day = localDate(turn.timestamp);
-      const d = bucket(dailyBuckets, day, () => ({ date: day, tokens: 0, cost: 0, costIncomplete: false, byTool: {} as Record<string, number> }));
+      const d = bucket(dailyBuckets, day, () => ({
+        date: day,
+        tokens: 0,
+        cost: 0,
+        costIncomplete: false,
+        byTool: {} as Record<string, number>,
+        cacheReadTokens: 0,
+        subagentTokens: 0,
+      }));
       d.tokens += tokens;
       if (cost === null) d.costIncomplete = true;
       else d.cost += cost;
+      d.cacheReadTokens += turn.usage.cache_read_input_tokens || 0;
+      if (turn.isSidechain) d.subagentTokens += tokens;
       for (const name of toolNames) {
         const g = groupName(name);
         d.byTool[g] = (d.byTool[g] || 0) + share;
@@ -616,7 +649,7 @@ export function suggestions(d: UsageResult): Suggestion[] {
   if (d.cacheEfficiency.cacheReadPct < 20) {
     out.push({
       id: 'cache-low',
-      text: `Solo il ${d.cacheEfficiency.cacheReadPct.toFixed(0)}% dei token proviene dalla cache. Riutilizzare lo stesso contesto tra richieste ravvicinate nella stessa sessione riduce il costo per token.`,
+      text: `Only ${d.cacheEfficiency.cacheReadPct.toFixed(0)}% of tokens come from cache. Reusing the same context across nearby requests in the same session cuts cost per token.`,
     });
   }
 
@@ -627,7 +660,7 @@ export function suggestions(d: UsageResult): Suggestion[] {
     if (tokenShare > 0.05 && costShare - tokenShare > 0.25) {
       out.push({
         id: 'model-skew-' + m.model,
-        text: `"${m.model}" genera il ${(costShare * 100).toFixed(0)}% della spesa ma solo il ${(tokenShare * 100).toFixed(0)}% dei token. Se molte di queste richieste sono task semplici, prova un modello più economico.`,
+        text: `"${m.model}" drives ${(costShare * 100).toFixed(0)}% of spend but only ${(tokenShare * 100).toFixed(0)}% of tokens. If many of these are simple tasks, try a cheaper model.`,
       });
     }
   }
@@ -637,7 +670,7 @@ export function suggestions(d: UsageResult): Suggestion[] {
     if (share > 0.35) {
       out.push({
         id: 'tool-dominant-' + t.name,
-        text: `"${t.name}" da solo genera il ${(share * 100).toFixed(0)}% dei token totali. Se viene invocato più spesso del necessario, valuta di limitarne l'uso.`,
+        text: `"${t.name}" alone accounts for ${(share * 100).toFixed(0)}% of total tokens. If it's called more often than needed, consider limiting its use.`,
       });
     }
   }
@@ -645,14 +678,14 @@ export function suggestions(d: UsageResult): Suggestion[] {
   if (d.subagents.pct > 30) {
     out.push({
       id: 'subagents-heavy',
-      text: `Il ${d.subagents.pct.toFixed(0)}% dei token viene da sottoagenti. Se i loro task sono ripetitivi, valuta di accorpare le richieste invece di dispatchare tanti agenti paralleli.`,
+      text: `${d.subagents.pct.toFixed(0)}% of tokens come from subagents. If their tasks are repetitive, consider merging requests instead of dispatching many parallel agents.`,
     });
   }
 
   if (d.liveSession && d.liveSession.contextLeftPct < 10) {
     out.push({
       id: 'context-full',
-      text: `La sessione attiva usa il ${(100 - d.liveSession.contextLeftPct).toFixed(0)}% della finestra di contesto. Avviare una nuova sessione ora evita rigenerazioni costose.`,
+      text: `The active session is using ${(100 - d.liveSession.contextLeftPct).toFixed(0)}% of the context window. Starting a new session now avoids costly regenerations.`,
     });
   }
 
@@ -663,7 +696,7 @@ export function suggestions(d: UsageResult): Suggestion[] {
     if (priorAvg > 0 && todayEntry.cost > priorAvg * 2.5) {
       out.push({
         id: 'daily-spike',
-        text: `Il consumo di oggi è circa ${(todayEntry.cost / priorAvg).toFixed(1)}x la media degli ultimi giorni. Controlla se è previsto o se un tool sta girando fuori controllo.`,
+        text: `Today's usage is about ${(todayEntry.cost / priorAvg).toFixed(1)}x the average of recent days. Check whether that's expected or a tool is running out of control.`,
       });
     }
   }

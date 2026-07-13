@@ -1,63 +1,66 @@
 @import "tailwindcss";
 @import "tailwindcss-primeui";
-/* ── design system (ported 1:1 from the old index.html <style>) ── */
+/* ── design system ("Nocturne") — dark is the default palette; ThemeService
+   sets [data-theme] on <html> before first paint, light is an override ── */
 :root {
-  --page: #f9f9f7;
-  --surface: #fcfcfb;
-  --ink: #0b0b0b;
-  --ink-2: #52514e;
+  --color-bg: #0d0d0d;
+  --color-surface: #1a1a19;
+  --color-text: #ffffff;
+  --ink-2: #c3c2b7;
   --muted: #898781;
+  --grid: #2c2c2a;
+  --color-divider: rgba(255, 255, 255, 0.10);
+  --color-accent: #8b7ae8;
+  --wash: rgba(139, 122, 232, 0.10);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --shadow-sm: 0 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-md: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 6px 18px rgba(0, 0, 0, 0.28);
+  --shadow-lg: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 14px 36px rgba(0, 0, 0, 0.4);
+  --font-heading: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: system-ui, -apple-system, "Segoe UI", sans-serif;
+  --s1: #9184d9;
+  --s2: #5fb8c0;
+  --s3: #d9a441;
+  --s4: #d07fb0;
+  --s5: #7c8cf0;
+  --s6: #78c493;
+  --s-other: #6b6e82;
+}
+
+:root[data-theme="light"] {
+  --color-bg: #eceef3;
+  --color-surface: #ffffff;
+  --color-text: #191b26;
+  --ink-2: #52514e;
+  --muted: #6b6d78;
   --grid: #e1e0d9;
-  --hairline: rgba(11, 11, 11, 0.10);
-  --series: #2a78d6;
-  --live: #006300;
-  --live-dot: #0ca30c;
-  --live-wash: rgba(12, 163, 12, 0.06);
-  --wash: rgba(42, 120, 214, 0.06);
-  --shadow: 0 1px 2px rgba(11, 11, 11, 0.04), 0 4px 12px rgba(11, 11, 11, 0.04);
-  --s1: #2a78d6;
-  --s2: #1baf7a;
-  --s3: #eda100;
-  --s4: #4a3aa7;
-  --s5: #e34948;
-  --s6: #e87ba4;
-  --s-other: #898781;
+  --color-divider: color-mix(in srgb, #191b26 12%, transparent);
+  --color-accent: #6152c4;
+  --wash: rgba(97, 82, 196, 0.08);
+  --shadow-sm: 0 0 0 1px #e6e7ee;
+  --shadow-md: 0 0 0 1px #e2e3ec, 0 6px 18px rgba(20, 22, 45, 0.07);
+  --shadow-lg: 0 0 0 1px #d9dae6, 0 14px 36px rgba(20, 22, 45, 0.12);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --page: #0d0d0d;
-    --surface: #1a1a19;
-    --ink: #ffffff;
-    --ink-2: #c3c2b7;
-    --muted: #898781;
-    --grid: #2c2c2a;
-    --hairline: rgba(255, 255, 255, 0.10);
-    --series: #3987e5;
-    --live: #0ca30c;
-    --live-dot: #0ca30c;
-    --live-wash: rgba(12, 163, 12, 0.08);
-    --wash: rgba(57, 135, 229, 0.10);
-    --shadow: none;
-    --s1: #3987e5;
-    --s2: #199e70;
-    --s3: #c98500;
-    --s4: #9085e9;
-    --s5: #e66767;
-    --s6: #d55181;
-    --s-other: #898781;
-  }
+/* PrimeNG's Aura preset resolves several component-level tokens (SelectButton,
+   MultiSelect, DatePicker...) via the native CSS light-dark() function, which
+   is keyed off `color-scheme`, not our [data-theme] attribute. Without this,
+   those components silently follow the OS preference instead of the app's
+   manual theme toggle. */
+:root {
+  color-scheme: dark;
 }
-
-html {
-  color-scheme: light dark;
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 body {
   margin: 0;
-  background: var(--page);
-  color: var(--ink);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
   padding: clamp(1rem, 3vw, 2.5rem);
   line-height: 1.45;
 }
@@ -104,11 +107,11 @@ body {
   position: absolute;
   pointer-events: none;
   z-index: 10;
-  background: var(--ink);
-  color: var(--page);
+  background: var(--color-text);
+  color: var(--color-bg);
   font-size: .72rem;
   padding: .45rem .6rem;
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   white-space: nowrap;
   transform: translate(-50%, -105%);
   line-height: 1.5;
@@ -116,12 +119,12 @@ body {
 
 .spark polyline {
   fill: none;
-  stroke: var(--series);
+  stroke: var(--color-accent);
   stroke-width: 1.5;
 }
 
 .spark polygon {
-  fill: var(--series);
+  fill: var(--color-accent);
   opacity: .12;
   stroke: none;
 }

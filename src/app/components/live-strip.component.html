@@ -1,13 +1,14 @@
 @if (visible() && live(); as ls) {
   <p-card
-    class="mb-6 border-l-[3px] border-l-[var(--live-dot)] bg-[linear-gradient(90deg,var(--live-wash),var(--surface)_45%)]"
+    class="mb-6 border-l-[3px] border-l-[var(--color-accent)] bg-[linear-gradient(100deg,color-mix(in_srgb,var(--color-accent)_16%,var(--color-surface)),var(--color-surface)_46%)]"
   >
     <div class="flex items-center gap-5 flex-wrap">
       <span
-        class="w-[9px] h-[9px] rounded-full bg-[var(--live-dot)] flex-none [animation:pulse-dot_1.6s_ease-in-out_infinite] motion-reduce:[animation:none]"
+        class="w-[9px] h-[9px] rounded-full bg-[var(--color-accent)] flex-none [animation:pulse-dot_1.6s_ease-in-out_infinite] motion-reduce:[animation:none]"
       ></span>
-      <span class="text-[.72rem] font-bold tracking-[.12em] uppercase text-[var(--live)]">Live</span>
+      <span class="text-[.72rem] font-bold tracking-[.12em] uppercase text-[var(--color-accent)]">Live</span>
       <span class="font-semibold text-[.9rem]" [title]="ls.project">{{ basename(ls.project) }}</span>
+      <span class="text-[.78rem] text-[var(--muted)]">{{ modelLabel() }}</span>
       <div class="flex gap-6 ml-auto flex-wrap">
         <div class="text-right">
           <div class="text-[.95rem] font-[650]"><span class="num">{{ fmtTokens(ls.tokens) }}</span></div>
@@ -22,16 +23,12 @@
           <div class="text-[.68rem] text-[var(--muted)] uppercase tracking-[.08em]">last tool</div>
         </div>
         <div class="text-right">
-          <div class="text-[.95rem] font-[650]">{{ modelLabel() }}</div>
-          <div class="text-[.68rem] text-[var(--muted)] uppercase tracking-[.08em]">model</div>
-        </div>
-        <div class="text-right">
           <div class="num text-[.95rem] font-[650]">{{ ctxPct() }}%</div>
           <div class="text-[.68rem] text-[var(--muted)] uppercase tracking-[.08em]">context left</div>
           <p-progressbar
             [value]="ctxPct()"
             [showValue]="false"
-            [color]="'var(--live-dot)'"
+            [color]="'var(--color-accent)'"
             class="w-[90px] h-1 mt-[.3rem] ml-auto"
           />
         </div>
@@ -42,7 +39,7 @@
             <p-progressbar
               [value]="sessPct()!"
               [showValue]="false"
-              [color]="'var(--live-dot)'"
+              [color]="'var(--color-accent)'"
               class="w-[90px] h-1 mt-[.3rem] ml-auto"
             />
           </div>

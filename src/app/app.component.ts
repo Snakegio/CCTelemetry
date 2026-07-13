@@ -1,17 +1,23 @@
 import {Component, computed, inject, OnDestroy, OnInit, signal} from '@angular/core';
-import {buildColorMap} from './core/colors';
+import {buildColorMap, categoricalPalette} from './core/colors';
 import {type Filters, suggestions} from './core/core';
 import {basename, fmtCost, fmtExact, fmtTokens} from './core/format';
 import {type Usage, UsageService} from './services/usage.service';
 import type {Cell, Column} from './components/data-table.component';
 import {DataTableComponent} from './components/data-table.component';
+import type {BarRow} from './components/bar-list.component';
+import {BarListComponent} from './components/bar-list.component';
 import {FiltersComponent} from './components/filters.component';
 import {LiveStripComponent} from './components/live-strip.component';
 import {StatTilesComponent} from './components/stat-tiles.component';
 import {SuggestionsComponent} from './components/suggestions.component';
+import {TokenShareComponent} from './components/token-share.component';
 import {ToolBreakdownComponent} from './components/tool-breakdown.component';
 import {UsageChartComponent} from './components/usage-chart.component';
 import {WarnBannerComponent} from './components/warn-banner.component';
+import {Theme} from './services/theme';
+
+const PREV_LABEL: Record<string, string> = { today: 'day', '7d': '7 days', '30d': '30 days' };
 
 @Component({
   selector: 'app-root',
@@ -22,15 +28,17 @@ import {WarnBannerComponent} from './components/warn-banner.component';
     StatTilesComponent,
     SuggestionsComponent,
     ToolBreakdownComponent,
+    TokenShareComponent,
     UsageChartComponent,
     DataTableComponent,
-
+    BarListComponent,
   ],
   templateUrl: './app.component.html',
 })
 export class AppComponent implements OnInit, OnDestroy {
   private usageService = inject(UsageService);
   private timer?: ReturnType<typeof setInterval>;
+  readonly theme = inject(Theme);
 
   usage = signal<Usage | null>(null);
   filters = signal<Filters>({ range: 'today', projects: [], from: '', to: '' });
@@ -45,16 +53,9 @@ export class AppComponent implements OnInit, OnDestroy {
   });
   liveVisible = computed(() => !!this.usage()?.liveSession && this.filters().range === 'today');
 
-  readonly projectColumns: Column[] = [
-    { label: 'Project', sortable: true },
-    { label: 'Tokens', align: 'right', sortable: true },
-    { label: 'Cost', align: 'right', sortable: true },
-  ];
-  readonly modelColumns: Column[] = [
-    { label: 'Model', sortable: true },
-    { label: 'Tokens', align: 'right', sortable: true },
-    { label: 'Cost', align: 'right', sortable: true },
-  ];
+  themeIcon = computed(() => (this.theme.current() === 'dark' ? '☀' : '☾'));
+  prevLabel = computed(() => (this.usage()?.previous ? (PREV_LABEL[this.filters().range ?? ''] ?? null) : null));
+
   readonly sessionColumns: Column[] = [
     { label: 'Project', sortable: true },
     { label: 'Session', sortable: true },
@@ -62,21 +63,24 @@ export class AppComponent implements OnInit, OnDestroy {
     { label: 'Cost', align: 'right', sortable: true },
   ];
 
-  projectRows = computed<Cell[][]>(() =>
-    (this.usage()?.byProject ?? []).map((p) => [
-      { value: basename(p.project), sub: p.project, title: p.project, strong: true },
-      { value: fmtTokens(p.tokens), title: fmtExact(p.tokens), num: true, sortValue: p.tokens },
-      { value: fmtCost(p.cost, p.costIncomplete), num: true, sortValue: p.cost },
-    ]),
-  );
+  projectBars = computed<BarRow[]>(() => {
+    const rows = this.usage()?.byProject ?? [];
+    const max = Math.max(...rows.map((p) => p.tokens), 1);
+    return rows.map((p) => ({ name: basename(p.project), tokens: fmtTokens(p.tokens), cost: fmtCost(p.cost, p.costIncomplete), barPct: (p.tokens / max) * 100 }));
+  });
 
-  modelRows = computed<Cell[][]>(() =>
-    (this.usage()?.byModel ?? []).map((m) => [
-      { value: m.model },
-      { value: fmtTokens(m.tokens), title: fmtExact(m.tokens), num: true, sortValue: m.tokens },
-      { value: fmtCost(m.cost, m.costIncomplete), num: true, sortValue: m.cost },
-    ]),
-  );
+  modelBars = computed<BarRow[]>(() => {
+    const rows = this.usage()?.byModel ?? [];
+    const palette = categoricalPalette();
+    const max = Math.max(...rows.map((m) => m.tokens), 1);
+    return rows.map((m, i) => ({
+      name: m.model,
+      tokens: fmtTokens(m.tokens),
+      cost: fmtCost(m.cost, m.costIncomplete),
+      barPct: (m.tokens / max) * 100,
+      color: palette[i % palette.length],
+    }));
+  });
 
   sessionRows = computed<Cell[][]>(() =>
     (this.usage()?.topSessions ?? []).map((s) => [

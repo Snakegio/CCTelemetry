@@ -1,0 +1,21 @@
+<div class="text-[.72rem] font-bold tracking-[.13em] uppercase text-[var(--ink-2)] mb-[.6rem] flex items-center gap-2">
+  <span class="w-2 h-2 rounded-sm bg-[var(--color-accent)] flex-none"></span>Token share by tool
+</div>
+<div class="bg-[var(--color-surface)] border border-[var(--color-divider)] rounded-[var(--radius-lg)] [box-shadow:var(--shadow-sm)] p-4">
+  <div class="flex justify-center mb-2">
+    <svg width="168" height="168" viewBox="0 0 168 168">
+      @for (d of donut(); track $index) {
+        <circle cx="84" cy="84" r="60" fill="none" [attr.stroke]="d.color" stroke-width="22" [attr.stroke-dasharray]="d.dash" [attr.stroke-dashoffset]="d.offset" transform="rotate(-90 84 84)"></circle>
+      }
+      <text x="84" y="80" text-anchor="middle" font-size="26" font-weight="600" font-family="ui-monospace,Menlo,monospace" class="fill-[var(--color-text)]">{{ totalShort() }}</text>
+      <text x="84" y="98" text-anchor="middle" font-size="10.5" letter-spacing="1" class="fill-[var(--muted)]">TOKENS</text>
+    </svg>
+  </div>
+  @for (s of shares(); track s.name) {
+    <div class="flex items-center gap-[9px] py-[5px] text-[12.5px]">
+      <span class="w-[9px] h-[9px] rounded-sm flex-none" [style.background]="s.color"></span>
+      <span class="flex-1 overflow-hidden text-ellipsis whitespace-nowrap">{{ s.name }}</span>
+      <span class="num text-[var(--ink-2)]">{{ s.pct.toFixed(1) }}%</span>
+    </div>
+  }
+</div>

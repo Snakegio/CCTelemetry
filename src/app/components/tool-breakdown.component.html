@@ -3,11 +3,11 @@
     class="text-[.72rem] font-bold tracking-[.13em] uppercase text-[var(--ink-2)] mb-[.6rem] flex justify-between items-baseline"
   >
     <span class="flex items-center gap-2"
-      ><span class="w-2 h-2 rounded-sm bg-[var(--series)] flex-none"></span>By tool &amp; MCP</span
+      ><span class="w-2 h-2 rounded-sm bg-[var(--color-accent)] flex-none"></span>By tool &amp; MCP</span
     >
     <span class="font-normal tracking-normal normal-case text-[var(--muted)] text-[.72rem]">click a row to drill down</span>
   </div>
-  <div class="bg-[var(--surface)] border border-[var(--hairline)] rounded-[10px] [box-shadow:var(--shadow)] overflow-hidden">
+  <div class="bg-[var(--color-surface)] border border-[var(--color-divider)] rounded-[var(--radius-lg)] [box-shadow:var(--shadow-sm)] overflow-hidden">
     <div class="flex gap-[2px] h-3 mx-4 mt-4 mb-[.35rem] rounded-[3px] overflow-hidden">
       @for (seg of shareSegments(); track $index) {
         <div class="min-w-[3px] transition-[width] duration-300 ease-out" [style.width.%]="seg.pct" [style.background]="seg.color" [title]="seg.title"></div>
@@ -32,7 +32,7 @@
               <span class="text-[var(--muted)] text-[.7rem] w-[.8em] flex-none transition-transform duration-150" [class.rotate-90]="expanded">{{ hasDrill(row) ? '▶' : '' }}</span>
               <span class="w-[9px] h-[9px] rounded-sm flex-none" [style.background]="colorOf(row.name)"></span>
               @if (badge(row)) {
-                <span class="text-[.62rem] font-bold tracking-[.06em] text-[var(--series)] border border-current rounded-[3px] px-[.3em] flex-none">{{ badge(row) }}</span>
+                <span class="text-[.62rem] font-bold tracking-[.06em] text-[var(--color-accent)] border border-current rounded-[3px] px-[.3em] flex-none">{{ badge(row) }}</span>
               }
               <span class="font-medium whitespace-nowrap overflow-hidden text-ellipsis" [title]="row.name">{{ label(row) }}</span>
             </div>

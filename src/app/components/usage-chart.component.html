@@ -3,13 +3,13 @@
     class="text-[.72rem] font-bold tracking-[.13em] uppercase text-[var(--ink-2)] mb-[.6rem] flex justify-between items-baseline"
   >
     <span class="flex items-center gap-2"
-      ><span class="w-2 h-2 rounded-sm bg-[var(--series)] flex-none"></span>Daily usage — tokens by tool</span
+      ><span class="w-2 h-2 rounded-sm bg-[var(--color-accent)] flex-none"></span>Daily usage — tokens by tool</span
     >
     <span class="font-normal tracking-normal normal-case text-[var(--muted)] text-[.72rem]"
       >last 30 days · survives log cleanup</span
     >
   </div>
-  <div class="chart-panel bg-[var(--surface)] border border-[var(--hairline)] rounded-[10px] [box-shadow:var(--shadow)]">
+  <div class="chart-panel bg-[var(--color-surface)] border border-[var(--color-divider)] rounded-[var(--radius-lg)] [box-shadow:var(--shadow-sm)]">
     <div class="chart-wrap relative px-4 pt-5 pb-2" #wrap>
       <svg [attr.viewBox]="'0 0 ' + W + ' ' + H">
         @if (chart().empty) {
@@ -21,9 +21,9 @@
               <text [attr.x]="8" [attr.y]="g.labelY" class="axis-label">{{ g.label }}</text>
             }
           }
-          @for (bar of chart().bars; track $index) {
+          @for (bar of chart().bars; track $index; let i = $index) {
             @for (r of bar.rects; track $index) {
-              <rect [attr.x]="r.x" [attr.y]="r.y" [attr.width]="r.w" [attr.height]="r.h" [attr.fill]="r.fill"></rect>
+              <rect [attr.x]="r.x" [attr.y]="r.y" [attr.width]="r.w" [attr.height]="r.h" [attr.fill]="r.fill" rx="1" [attr.opacity]="hoverIndex() === null || hoverIndex() === i ? 1 : 0.35"></rect>
             }
           }
           @for (hit of chart().hits; track $index) {

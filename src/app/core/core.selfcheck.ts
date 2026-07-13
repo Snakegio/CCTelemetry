@@ -1,7 +1,7 @@
 // Self-check for the pure aggregation core: `npm run test:core` (tsx). Excluded
 // from the Angular build (tsconfig.app.json) — it uses node's assert.
 import assert from 'node:assert';
-import { aggregate, suggestions, type UsageResult } from './core';
+import { aggregate, previousRangeFilters, suggestions, type UsageResult } from './core';
 
 // suggestions() accepts partial shapes here; cast since these are hand-built.
 const sug = (d: unknown) => suggestions(d as UsageResult);
@@ -145,5 +145,17 @@ const threeProjects = [
 const multiFiltered = aggregate(threeProjects, { range: 'all', projects: ['/a', '/b'] }, null, NOW).result;
 assert.strictEqual(multiFiltered.totals.tokens, 400, 'multi-project filter includes all selected projects, excludes the rest');
 assert.deepStrictEqual([...multiFiltered.projects].sort(), ['/a', '/b', '/c'], 'result.projects stays the full list with a multi-project filter active');
+
+// previousRangeFilters() checks
+assert.strictEqual(previousRangeFilters({ range: 'all' }, NOW), null, 'all time has no previous period');
+assert.strictEqual(previousRangeFilters({ range: 'custom', from: '2026-07-01', to: '2026-07-05' }, NOW), null, 'custom range has no previous period');
+
+const prevToday = previousRangeFilters({ range: 'today' }, NOW)!;
+assert.strictEqual(prevToday.from, '2026-07-09', 'previous period for today is yesterday');
+assert.strictEqual(prevToday.to, '2026-07-09', 'previous period for today is a single day');
+
+const prev7d = previousRangeFilters({ range: '7d' }, NOW)!;
+assert.strictEqual(prev7d.from, '2026-06-26', 'previous period for 7d starts 14 days back');
+assert.strictEqual(prev7d.to, '2026-07-03', 'previous period for 7d ends 7 days back');
 
 console.log('core.ts suggestions() self-check: OK');

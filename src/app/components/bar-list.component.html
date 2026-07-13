@@ -1,0 +1,13 @@
+<div class="bg-[var(--color-surface)] border border-[var(--color-divider)] rounded-[var(--radius-lg)] [box-shadow:var(--shadow-sm)] p-4">
+  @for (r of rows(); track r.name) {
+    <div class="py-[7px]">
+      <div class="flex justify-between items-baseline text-[13px] mb-[5px]">
+        <span class="font-medium whitespace-nowrap overflow-hidden text-ellipsis">{{ r.name }}</span>
+        <span class="num flex-none pl-[10px] whitespace-nowrap text-[var(--ink-2)]">{{ r.tokens }} · {{ r.cost }}</span>
+      </div>
+      <div class="h-[6px] rounded-[3px] overflow-hidden bg-[var(--color-divider)]">
+        <div class="h-full rounded-[3px]" [style.width.%]="r.barPct" [style.background]="r.color || 'var(--color-accent)'"></div>
+      </div>
+    </div>
+  }
+</div>

@@ -61,7 +61,7 @@ export class UsageChartComponent {
     const GAP = 2;
 
     const bars: { rects: { x: number; y: number; w: number; h: number; fill: string }[] }[] = [];
-    const hits: { x: number; y: number; w: number; h: number; title: string; rows: TipRow[] }[] = [];
+    const hits: { x: number; y: number; w: number; h: number; title: string; rows: TipRow[]; dayIndex: number }[] = [];
     const xlabels: { x: number; y: number; text: string }[] = [];
 
     daily.forEach((d, i) => {
@@ -95,7 +95,7 @@ export class UsageChartComponent {
         .filter((r) => r.v > 0)
         .sort((a, b) => b.v - a.v);
       const title = `${fmtDay(d.date)} — ${fmtTokens(d.tokens)} tokens · ${fmtCost(d.cost, d.costIncomplete)}`;
-      hits.push({ x: PAD_L + i * slot, y: PAD_T, w: slot, h: PLOT_H, title, rows });
+      hits.push({ x: PAD_L + i * slot, y: PAD_T, w: slot, h: PLOT_H, title, rows, dayIndex: i });
 
       if (i === 0 || i === n - 1 || (n > 8 && i % 5 === 0 && i < n - 2)) {
         xlabels.push({ x: PAD_L + i * slot + slot / 2, y: H - 6, text: fmtDay(d.date) });
@@ -105,8 +105,11 @@ export class UsageChartComponent {
     return { empty: false, legend, gridlines, bars, hits, xlabels };
   });
 
-  enterTip(hit: { title: string; rows: TipRow[] }): void {
+  hoverIndex = signal<number | null>(null);
+
+  enterTip(hit: { title: string; rows: TipRow[]; dayIndex: number }): void {
     this.tip.update((t) => ({ ...t, show: true, title: hit.title, rows: hit.rows }));
+    this.hoverIndex.set(hit.dayIndex);
   }
 
   moveTip(ev: MouseEvent, wrap: HTMLElement): void {
@@ -118,5 +121,6 @@ export class UsageChartComponent {
 
   hideTip(): void {
     this.tip.update((t) => ({ ...t, show: false }));
+    this.hoverIndex.set(null);
   }
 }

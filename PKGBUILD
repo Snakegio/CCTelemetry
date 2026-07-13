@@ -1,6 +1,6 @@
 # Maintainer: Giorgio Privitera <giorgio.privitera@relatech.com>
 pkgname=cctelemetry-bin
-pkgver=0.2.2
+pkgver=0.2.3
 pkgrel=1
 pkgdesc="Menu bar app for Claude Code token telemetry"
 arch=('x86_64')

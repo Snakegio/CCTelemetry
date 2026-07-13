@@ -4,6 +4,7 @@ import {
   aggregate,
   applyPriceOverrides,
   parseFileToTurns,
+  previousRangeFilters,
   type DailyEntry,
   type FileEntry,
   type Filters,
@@ -23,7 +24,11 @@ interface FileContent {
   content: string;
 }
 
-export type Usage = UsageResult & { claudeNotFound: boolean };
+// Comparison figures for the KPI tile deltas — only present when the active
+// range has an unambiguous previous period (see previousRangeFilters()).
+export type PreviousPeriod = Pick<UsageResult, 'totals' | 'cacheEfficiency' | 'subagents'>;
+
+export type Usage = UsageResult & { claudeNotFound: boolean; previous: PreviousPeriod | null };
 
 // Reads ~/.claude/projects through Rust commands, runs the shared aggregation
 // core, and persists daily history. Replaces the old tauri-provider.js — same
@@ -103,6 +108,10 @@ export class UsageService {
 
     const { result, historyChanged } = aggregate(entries, filters, this.storedHistory);
     if (historyChanged) await this.saveHistory();
-    return { ...result, claudeNotFound };
+
+    const prevFilters = previousRangeFilters(filters);
+    const previous = prevFilters ? aggregate(entries, prevFilters, this.storedHistory).result : null;
+
+    return { ...result, claudeNotFound, previous };
   }
 }
