@@ -128,3 +128,27 @@ pub fn write_history(app: tauri::AppHandle, json: String) -> Result<(), String> 
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     std::fs::write(dir.join("history.json"), json).map_err(|e| e.to_string())
 }
+
+// Notification-threshold preferences from the Settings page. Read by the
+// native tray polling thread (lib.rs) on every tick; written by the
+// frontend on every toggle/slider change. Shape is frontend-owned JSON,
+// same pattern as read_history/write_history.
+#[tauri::command]
+pub fn read_notify_settings(app: tauri::AppHandle) -> String {
+    app.path()
+        .app_data_dir()
+        .ok()
+        .and_then(|d| std::fs::read_to_string(d.join("data").join("settings.json")).ok())
+        .unwrap_or_else(|| "{}".to_string())
+}
+
+#[tauri::command]
+pub fn write_notify_settings(app: tauri::AppHandle, json: String) -> Result<(), String> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| e.to_string())?
+        .join("data");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    std::fs::write(dir.join("settings.json"), json).map_err(|e| e.to_string())
+}

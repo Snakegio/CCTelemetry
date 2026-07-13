@@ -2,8 +2,9 @@ use tauri::{
     image::Image,
     menu::{MenuBuilder, MenuItemBuilder},
     tray::{TrayIconBuilder, TrayIconEvent},
-    Manager,
+    Emitter, Manager,
 };
+use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_updater::UpdaterExt;
 
 mod commands;
@@ -328,6 +329,77 @@ fn claude_installed(app: &tauri::AppHandle) -> bool {
         .unwrap_or(false)
 }
 
+// Persisted from the Settings page (see commands::write_notify_settings).
+// `Default` gives a safe all-off fallback when settings.json doesn't exist
+// yet or fails to parse.
+#[derive(serde::Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+struct NotifySettings {
+    enabled: bool,
+    five_hour_threshold: f64,
+    weekly_threshold: f64,
+}
+
+// Re-arm state for the two threshold notifications: true once a crossing
+// has been notified, reset back to false when the percentage drops back
+// under the threshold (which happens naturally when the window resets).
+static FIVE_HOUR_NOTIFIED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+static WEEKLY_NOTIFIED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+// Pure decision for whether a fresh notification is due, given the current
+// percentage, its threshold, and whether one was already sent for the
+// current crossing. Returns (should_notify_now, next_armed_state).
+fn crosses_threshold(pct: f64, threshold: f64, already_notified: bool) -> (bool, bool) {
+    if pct < threshold {
+        (false, false)
+    } else if already_notified {
+        (false, true)
+    } else {
+        (true, true)
+    }
+}
+
+// Fires a native OS notification the first time `pct` reaches `threshold`,
+// then stays quiet until `pct` drops back under it. No-ops if the OS
+// notification permission hasn't been granted (requested from the
+// frontend when the user turns the Settings toggle on).
+fn maybe_notify(app: &tauri::AppHandle, pct: f64, threshold: f64, already: &std::sync::atomic::AtomicBool, body: &str) {
+    use std::sync::atomic::Ordering;
+    let (should_notify, armed) = crosses_threshold(pct, threshold, already.load(Ordering::Relaxed));
+    already.store(armed, Ordering::Relaxed);
+    if !should_notify {
+        return;
+    }
+    let granted = app
+        .notification()
+        .permission_state()
+        .map(|s| s == tauri_plugin_notification::PermissionState::Granted)
+        .unwrap_or(false);
+    if granted {
+        let _ = app.notification().builder().title("CCTelemetry").body(body).show();
+    }
+}
+
+// Reads the user's configured thresholds and notifies on each crossing.
+// `h5_pct`/`wk_pct` are `None` when that window's percentage wasn't
+// available this tick (e.g. a transient API error) — skipped, not treated
+// as 0%.
+fn check_usage_thresholds(app: &tauri::AppHandle, h5_pct: Option<f64>, wk_pct: Option<f64>) {
+    let settings: NotifySettings =
+        serde_json::from_str(&commands::read_notify_settings(app.clone())).unwrap_or_default();
+    if !settings.enabled {
+        return;
+    }
+    if let Some(n) = h5_pct {
+        let body = format!("Claude Code usage has reached {}% of your 5-hour session limit.", n.round() as i64);
+        maybe_notify(app, n, settings.five_hour_threshold, &FIVE_HOUR_NOTIFIED, &body);
+    }
+    if let Some(n) = wk_pct {
+        let body = format!("Claude Code usage has reached {}% of your weekly limit.", n.round() as i64);
+        maybe_notify(app, n, settings.weekly_threshold, &WEEKLY_NOTIFIED, &body);
+    }
+}
+
 // Polls cclimits and pushes the 5-hour used % to the tray title (macOS shows it
 // next to the icon) and to a rendered icon badge (Windows/Linux, see
 // set_tray_badge). Runs on a native
@@ -368,11 +440,14 @@ fn update_tray(app: &tauri::AppHandle) {
         let _ = tray.set_title(Some(title.as_str()));
         let _ = tray.set_tooltip(Some(tooltip.as_str()));
     }
-    if let Ok(n) = h5_used.trim_end_matches('%').trim().parse::<f64>() {
+    let h5_pct = h5_used.trim_end_matches('%').trim().parse::<f64>().ok();
+    if let Some(n) = h5_pct {
         // Clipped, not wrong, if usage ever prints 3 digits (100%) — the
         // badge just renders every digit it's given (see render_badge_icon).
         set_tray_badge(app, &(n.round() as i64).max(0).to_string());
     }
+    let wk_pct = wk_used.trim_end_matches('%').trim().parse::<f64>().ok();
+    check_usage_thresholds(app, h5_pct, wk_pct);
 }
 
 // Extracts every "$X/MTok" price in a line, in order (there's no pricing
@@ -506,6 +581,7 @@ fn show_main(app: &tauri::AppHandle) {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_notification::init())
         .invoke_handler(tauri::generate_handler![
             commands::list_sessions,
             commands::read_sessions,
@@ -513,6 +589,8 @@ pub fn run() {
             commands::get_pricing,
             commands::read_history,
             commands::write_history,
+            commands::read_notify_settings,
+            commands::write_notify_settings,
         ])
         .setup(|app| {
             // menu-bar app: no Dock icon on macOS
@@ -520,8 +598,10 @@ pub fn run() {
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
             let open = MenuItemBuilder::with_id("open", "Open dashboard").build(app)?;
+            let about = MenuItemBuilder::with_id("about", "About").build(app)?;
+            let settings = MenuItemBuilder::with_id("settings", "Settings").build(app)?;
             let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
-            let menu = MenuBuilder::new(app).items(&[&open, &quit]).build()?;
+            let menu = MenuBuilder::new(app).items(&[&open, &about, &settings, &quit]).build()?;
 
             let icon = Image::from_bytes(include_bytes!("../icons/tray.png"))?;
             TrayIconBuilder::with_id("main")
@@ -531,7 +611,18 @@ pub fn run() {
                 .menu(&menu)
                 .show_menu_on_left_click(false)
                 .on_menu_event(|app, event| match event.id().as_ref() {
-                    "open" => show_main(app),
+                    "open" => {
+                        show_main(app);
+                        let _ = app.emit("navigate", "dashboard");
+                    }
+                    "about" => {
+                        show_main(app);
+                        let _ = app.emit("navigate", "about");
+                    }
+                    "settings" => {
+                        show_main(app);
+                        let _ = app.emit("navigate", "settings");
+                    }
                     "quit" => app.exit(0),
                     _ => {}
                 })
@@ -629,5 +720,13 @@ mod tests {
         assert_eq!(table["opus"], serde_json::json!({ "in": 5.0, "out": 25.0 }));
         assert_eq!(table["haiku"], serde_json::json!({ "in": 0.25, "out": 1.25 }));
         assert!(!table.contains_key("sonnet"));
+    }
+
+    #[test]
+    fn crosses_threshold_variants() {
+        assert_eq!(crosses_threshold(85.0, 80.0, false), (true, true)); // fresh crossing
+        assert_eq!(crosses_threshold(85.0, 80.0, true), (false, true)); // already notified, stays armed
+        assert_eq!(crosses_threshold(70.0, 80.0, true), (false, false)); // drops back under, re-arms
+        assert_eq!(crosses_threshold(70.0, 80.0, false), (false, false)); // under threshold, stays unarmed
     }
 }

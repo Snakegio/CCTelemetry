@@ -1,0 +1,50 @@
+<app-header />
+
+<div class="max-w-[560px] mx-auto py-8">
+  <a routerLink="/" class="text-[13px] text-[var(--muted)] hover:text-[var(--color-text)] mb-6 inline-block cursor-pointer">
+    ← Dashboard
+  </a>
+
+  <h1 class="text-[1.1rem] font-semibold mb-6">Settings</h1>
+
+  <div class="flex items-center justify-between mb-6">
+    <span class="text-[13px] text-[var(--color-text)]">Enable notifications</span>
+    <p-toggleswitch [ngModel]="settings().enabled" (ngModelChange)="setEnabled($event)" />
+  </div>
+
+  @if (permissionDenied()) {
+    <p class="text-[12px] text-[var(--color-accent)] mb-6">
+      Notification permission was denied — enable it for CCTelemetry in your OS notification settings.
+    </p>
+  }
+
+  <div class="space-y-6" [class.opacity-50]="!settings().enabled">
+    <div>
+      <label class="text-[13px] text-[var(--color-text)] mb-2 block">
+        Notify at {{ settings().fiveHourThreshold }}% of 5-hour session usage
+      </label>
+      <p-slider
+        [ngModel]="settings().fiveHourThreshold"
+        (ngModelChange)="setFiveHourThreshold($event)"
+        [min]="50"
+        [max]="100"
+        [step]="5"
+        [disabled]="!settings().enabled"
+      />
+    </div>
+
+    <div>
+      <label class="text-[13px] text-[var(--color-text)] mb-2 block">
+        Notify at {{ settings().weeklyThreshold }}% of weekly usage
+      </label>
+      <p-slider
+        [ngModel]="settings().weeklyThreshold"
+        (ngModelChange)="setWeeklyThreshold($event)"
+        [min]="50"
+        [max]="100"
+        [step]="5"
+        [disabled]="!settings().enabled"
+      />
+    </div>
+  </div>
+</div>

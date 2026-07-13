@@ -1,16 +1,16 @@
 import {ApplicationConfig, provideBrowserGlobalErrorListeners} from '@angular/core';
+import {provideRouter} from '@angular/router';
 import {providePrimeNG} from "primeng/config";
 import { AppPreset } from './theme/preset';
+import { routes } from './app.route';
 
-// No router: the dashboard is a single view.
 export const appConfig: ApplicationConfig = {
     providers: [provideBrowserGlobalErrorListeners(),
+        provideRouter(routes),
         providePrimeNG({
             theme: {
                 preset: AppPreset,
                 options: {
-                    // le utility Tailwind (incl. valori arbitrari) devono poter
-                    // vincere sul CSS di PrimeNG dove già usate nei template
                     cssLayer: { name: 'primeng', order: 'theme, base, primeng, utilities' },
                 },
             },
