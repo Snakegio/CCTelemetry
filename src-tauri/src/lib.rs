@@ -1,9 +1,9 @@
 use tauri::{
-    image::Image,
     menu::{MenuBuilder, MenuItemBuilder},
     tray::{TrayIconBuilder, TrayIconEvent},
     Emitter, Manager,
 };
+use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_notification::NotificationExt;
 use tauri_plugin_updater::UpdaterExt;
 
@@ -231,22 +231,10 @@ fn run_cclimits(app: &tauri::AppHandle) -> serde_json::Value {
     serde_json::json!({ "claude": claude })
 }
 
-// Rounds a "4.0%" string to "4%". Falls back to the raw string on parse failure.
-fn pct_round(used: &str) -> String {
-    match used.trim_end_matches('%').trim().parse::<f64>() {
-        Ok(n) => format!("{}%", n.round() as i64),
-        Err(_) => used.to_string(),
-    }
-}
-
-// 3x5 pixel bitmaps for the digits + "!". Windows tray icons have no
-// text-label API — Shell_NotifyIcon only ever accepts a bitmap — and Linux's
-// AppIndicator set_label (via tray.set_title) doesn't actually render next to
-// the icon on most desktop environments (GNOME included), so both platforms
-// bake the number directly into the icon's pixels instead of pulling in a
-// font-rendering dependency for eleven glyphs. macOS is the only platform
-// where the title reliably shows up next to the icon.
-#[cfg(any(windows, target_os = "linux"))]
+// 3x5 pixel bitmaps for the digits + "!". The tray icon is rendered identically
+// on every platform (a progress ring with the number baked into its center), so
+// these glyphs are drawn straight into the icon's pixels rather than pulling in
+// a font-rendering dependency for eleven glyphs.
 fn glyph_bits(ch: char) -> Option<[u8; 5]> {
     Some(match ch {
         '0' => [0b111, 0b101, 0b101, 0b101, 0b111],
@@ -264,63 +252,158 @@ fn glyph_bits(ch: char) -> Option<[u8; 5]> {
     })
 }
 
-#[cfg(any(windows, target_os = "linux"))]
-const BADGE_SIZE: u32 = 22;
-#[cfg(any(windows, target_os = "linux"))]
-const GLYPH_SCALE: u32 = 3;
-#[cfg(any(windows, target_os = "linux"))]
-const GLYPH_W: u32 = 3 * GLYPH_SCALE;
-#[cfg(any(windows, target_os = "linux"))]
-const GLYPH_H: u32 = 5 * GLYPH_SCALE;
-#[cfg(any(windows, target_os = "linux"))]
-const GLYPH_GAP: u32 = GLYPH_SCALE;
+// Tray icon geometry. The ring is drawn at RING_SS× the final size then
+// box-downsampled, so its curved edges anti-alias for free without a graphics crate.
+const RING_SIZE: u32 = 44; // final icon px (22pt @2x retina; the OS downscales for Windows' ~16px)
+const RING_SS: u32 = 3; // supersample factor → 132×132 internal buffer
+const RING_MARGIN: f64 = 0.0; // inset from the icon edge, final px
+const RING_BAND: f64 = 3.0; // ring thickness, final px
+const TRACK_A: u8 = 60; // alpha of the ring's unfilled part (~24%)
 
-// Renders `text` (digits and "!" only; anything else is skipped) as opaque
-// white pixels on a transparent background, sized for a tray icon.
-#[cfg(any(windows, target_os = "linux"))]
-fn render_badge_icon(text: &str) -> tauri::image::Image<'static> {
+// Angle of (dx, dy) measured from 12 o'clock, clockwise, normalized to [0, 2π).
+fn arc_angle(dx: f64, dy: f64) -> f64 {
+    let a = dx.atan2(-dy);
+    if a < 0.0 {
+        a + 2.0 * std::f64::consts::PI
+    } else {
+        a
+    }
+}
+
+const GLYPH_W: u32 = 3; // glyph bitmap width in cells (glyph_bits are 3×5)
+const GLYPH_H: u32 = 5;
+
+// Inter-glyph gap for a given scale — a third of a cell, min 1px, so bigger
+// glyphs stay separated without eating the width 3+ chars need.
+fn glyph_gap(scale: u32) -> u32 {
+    (scale / 3).max(1)
+}
+
+// Total pixel width of `n` glyphs rendered at `scale`.
+fn glyphs_width(n: u32, scale: u32) -> u32 {
+    n * GLYPH_W * scale + n.saturating_sub(1) * glyph_gap(scale)
+}
+
+// Largest scale whose glyph row fits `box_w`×`box_h` (width dominates for 3+ chars).
+fn fit_scale(n: u32, box_w: u32, box_h: u32) -> u32 {
+    let mut scale = 1u32;
+    for s in 1..=12u32 {
+        if glyphs_width(n, s) <= box_w && GLYPH_H * s <= box_h {
+            scale = s;
+        } else {
+            break;
+        }
+    }
+    scale
+}
+
+// Blits `text` (glyph_bits chars only) centered in a canvas_w×canvas_h RGBA
+// buffer, in `rgb`, at an explicit `scale`. Drawn at final resolution so digits
+// stay crisp (a pixel font blurred by the ring's supersampling would turn to mush).
+fn blit_glyphs(rgba: &mut [u8], canvas_w: u32, canvas_h: u32, text: &str, rgb: [u8; 3], scale: u32) {
     let glyphs: Vec<[u8; 5]> = text.chars().filter_map(glyph_bits).collect();
-    let n = glyphs.len().max(1) as u32;
-    let total_w = n * GLYPH_W + (n - 1) * GLYPH_GAP;
-    let x_off = BADGE_SIZE.saturating_sub(total_w) / 2;
-    let y_off = BADGE_SIZE.saturating_sub(GLYPH_H) / 2;
-
-    let mut rgba = vec![0u8; (BADGE_SIZE * BADGE_SIZE * 4) as usize];
+    if glyphs.is_empty() {
+        return;
+    }
+    let n = glyphs.len() as u32;
+    let gap = glyph_gap(scale);
+    let total_w = glyphs_width(n, scale);
+    let x_off = canvas_w.saturating_sub(total_w) / 2;
+    let y_off = canvas_h.saturating_sub(GLYPH_H * scale) / 2;
+    let px4 = [rgb[0], rgb[1], rgb[2], 255];
     for (i, glyph) in glyphs.iter().enumerate() {
-        let dx = x_off + i as u32 * (GLYPH_W + GLYPH_GAP);
+        let dx = x_off + i as u32 * (GLYPH_W * scale + gap);
         for (row, bits) in glyph.iter().enumerate() {
-            for col in 0..3u32 {
+            for col in 0..GLYPH_W {
                 if (bits >> (2 - col)) & 1 != 1 {
                     continue;
                 }
-                for sy in 0..GLYPH_SCALE {
-                    for sx in 0..GLYPH_SCALE {
-                        let px = dx + col * GLYPH_SCALE + sx;
-                        let py = y_off + row as u32 * GLYPH_SCALE + sy;
-                        if px < BADGE_SIZE && py < BADGE_SIZE {
-                            let idx = ((py * BADGE_SIZE + px) * 4) as usize;
-                            rgba[idx..idx + 4].copy_from_slice(&[255, 255, 255, 255]);
+                for sy in 0..scale {
+                    for sx in 0..scale {
+                        let px = dx + col * scale + sx;
+                        let py = y_off + row as u32 * scale + sy;
+                        if px < canvas_w && py < canvas_h {
+                            let idx = ((py * canvas_w + px) * 4) as usize;
+                            rgba[idx..idx + 4].copy_from_slice(&px4);
                         }
                     }
                 }
             }
         }
     }
-    tauri::image::Image::new_owned(rgba, BADGE_SIZE, BADGE_SIZE)
 }
 
-// Windows/Linux: swaps the tray icon itself for a rendered badge, since
-// set_title's text doesn't reliably show up next to the icon on either (see
-// glyph_bits above). No-op on macOS, which already gets the number via
-// set_title (title-next-to-icon).
-#[cfg(any(windows, target_os = "linux"))]
-fn set_tray_badge(app: &tauri::AppHandle, text: &str) {
+// Renders the tray icon. Ring mode: a square progress ring filling clockwise
+// from the top to `pct`% (in `rgb`, faint track behind) with the number
+// auto-fit inside. Text mode: just `label` (e.g. "75%") at the user-chosen
+// `text_scale`, on a canvas widened to fit — a wider-than-tall image lets the
+// OS scale the glyphs up to the menu-bar height, so a bigger scale reads bigger.
+fn render_tray_icon(pct: f64, ring: bool, rgb: [u8; 3], label: &str, text_scale: u32) -> tauri::image::Image<'static> {
+    if !ring {
+        let n = label.chars().filter(|c| glyph_bits(*c).is_some()).count() as u32;
+        let scale = text_scale.clamp(2, 8); // 8 → glyph height 40px ≈ full menu-bar height
+        let w = glyphs_width(n.max(1), scale).saturating_add(4).max(RING_SIZE);
+        let h = RING_SIZE;
+        let mut rgba = vec![0u8; (w * h * 4) as usize];
+        blit_glyphs(&mut rgba, w, h, label, rgb, scale);
+        return tauri::image::Image::new_owned(rgba, w, h);
+    }
+
+    let mut rgba = vec![0u8; (RING_SIZE * RING_SIZE * 4) as usize];
+    {
+        let s = RING_SIZE * RING_SS; // 132
+        let ss = RING_SS as f64;
+        let c = s as f64 / 2.0;
+        let r_out = (RING_SIZE as f64 / 2.0 - RING_MARGIN) * ss;
+        let r_in = r_out - RING_BAND * ss;
+        let sweep = (pct / 100.0).clamp(0.0, 1.0) * 2.0 * std::f64::consts::PI;
+
+        // Supersampled single-channel alpha buffer for the band.
+        let mut hi = vec![0u8; (s * s) as usize];
+        for y in 0..s {
+            for x in 0..s {
+                let dx = x as f64 + 0.5 - c;
+                let dy = y as f64 + 0.5 - c;
+                let r = (dx * dx + dy * dy).sqrt();
+                if r < r_in || r > r_out {
+                    continue;
+                }
+                hi[(y * s + x) as usize] = if arc_angle(dx, dy) <= sweep { 255 } else { TRACK_A };
+            }
+        }
+
+        // Box-downsample SS×SS → final RGBA (alpha = block mean gives the AA).
+        let area = (RING_SS * RING_SS) as u32;
+        for oy in 0..RING_SIZE {
+            for ox in 0..RING_SIZE {
+                let mut sum = 0u32;
+                for sy in 0..RING_SS {
+                    for sx in 0..RING_SS {
+                        let px = ox * RING_SS + sx;
+                        let py = oy * RING_SS + sy;
+                        sum += hi[(py * s + px) as usize] as u32;
+                    }
+                }
+                let idx = ((oy * RING_SIZE + ox) * 4) as usize;
+                rgba[idx..idx + 4].copy_from_slice(&[rgb[0], rgb[1], rgb[2], (sum / area) as u8]);
+            }
+        }
+    }
+    // Fit the number inside the ring's hole (inscribed square of the inner circle).
+    let box_side = ((RING_SIZE as f64 / 2.0 - RING_MARGIN - RING_BAND) * std::f64::consts::SQRT_2) as u32;
+    let n = label.chars().filter(|c| glyph_bits(*c).is_some()).count() as u32;
+    blit_glyphs(&mut rgba, RING_SIZE, RING_SIZE, label, rgb, fit_scale(n.max(1), box_side, box_side));
+    tauri::image::Image::new_owned(rgba, RING_SIZE, RING_SIZE)
+}
+
+// Swaps the tray icon for a freshly rendered ring/text. One path for every
+// platform (macOS included, which is why the tray is no longer a template
+// image — see TrayIconBuilder).
+fn set_tray_icon(app: &tauri::AppHandle, pct: f64, ring: bool, rgb: [u8; 3], label: &str, text_scale: u32) {
     if let Some(tray) = app.tray_by_id("main") {
-        let _ = tray.set_icon(Some(render_badge_icon(text)));
+        let _ = tray.set_icon(Some(render_tray_icon(pct, ring, rgb, label, text_scale)));
     }
 }
-#[cfg(not(any(windows, target_os = "linux")))]
-fn set_tray_badge(_app: &tauri::AppHandle, _text: &str) {}
 
 fn claude_installed(app: &tauri::AppHandle) -> bool {
     app.path()
@@ -338,6 +421,39 @@ struct NotifySettings {
     enabled: bool,
     five_hour_threshold: f64,
     weekly_threshold: f64,
+    // Icon prefs, added later — `default` keeps pre-existing settings.json files
+    // (which lack these keys) parseable so notifications don't silently reset.
+    #[serde(default = "default_icon_color")]
+    icon_color: String,
+    #[serde(default = "default_icon_mode")]
+    icon_mode: String,
+    #[serde(default = "default_icon_text_scale")]
+    icon_text_scale: u32,
+}
+
+fn default_icon_text_scale() -> u32 {
+    6
+}
+fn default_icon_color() -> String {
+    "#9CA3AF".to_string()
+}
+fn default_icon_mode() -> String {
+    "ring".to_string()
+}
+
+// Parses "#rrggbb" / "rrggbb" to RGB; falls back to neutral gray on anything else.
+fn parse_hex_color(s: &str) -> [u8; 3] {
+    let h = s.trim().trim_start_matches('#');
+    if h.len() == 6 {
+        if let (Ok(r), Ok(g), Ok(b)) = (
+            u8::from_str_radix(&h[0..2], 16),
+            u8::from_str_radix(&h[2..4], 16),
+            u8::from_str_radix(&h[4..6], 16),
+        ) {
+            return [r, g, b];
+        }
+    }
+    [0x9C, 0xA3, 0xAF]
 }
 
 // Re-arm state for the two threshold notifications: true once a crossing
@@ -400,21 +516,25 @@ fn check_usage_thresholds(app: &tauri::AppHandle, h5_pct: Option<f64>, wk_pct: O
     }
 }
 
-// Polls cclimits and pushes the 5-hour used % to the tray title (macOS shows it
-// next to the icon) and to a rendered icon badge (Windows/Linux, see
-// set_tray_badge). Runs on a native
-// thread so it keeps ticking while the dashboard window is hidden — WKWebview
-// throttles/suspends JS timers in hidden windows, which is why this can't live
-// in the webview. On any failure we leave the previous title in place rather
-// than blanking it — except when Claude Code itself isn't installed, which
-// gets an explicit "!" so the user isn't left staring at stale numbers.
+// Polls cclimits and renders the 5-hour used % into the tray icon (a progress
+// ring, or plain text — user's choice, see the Icona settings). Runs on a
+// native thread so it keeps ticking while the dashboard window is hidden —
+// WKWebview throttles/suspends JS timers in hidden windows, which is why this
+// can't live in the webview. On any failure we leave the previous icon in place
+// rather than blanking it — except when Claude Code itself isn't installed,
+// which gets an explicit "!" so the user isn't left staring at stale numbers.
 fn update_tray(app: &tauri::AppHandle) {
+    let settings: NotifySettings =
+        serde_json::from_str(&commands::read_notify_settings(app.clone())).unwrap_or_default();
+    let rgb = parse_hex_color(&settings.icon_color);
+    let ring = settings.icon_mode != "text";
+    let text_scale = settings.icon_text_scale;
+
     if !claude_installed(app) {
         if let Some(tray) = app.tray_by_id("main") {
-            let _ = tray.set_title(Some("!"));
-            let _ = tray.set_tooltip(Some("Claude Code non trovato (~/.claude mancante)"));
+            let _ = tray.set_tooltip(Some("Claude Code not found (~/.claude missing)"));
         }
-        set_tray_badge(app, "!");
+        set_tray_icon(app, 0.0, ring, rgb, "!", text_scale);
         return;
     }
     let v = run_cclimits(app);
@@ -428,7 +548,6 @@ fn update_tray(app: &tauri::AppHandle) {
     if h5_used.is_empty() {
         return;
     }
-    let title = pct_round(&h5_used);
     let tooltip = format!(
         "5h {} · resets {}  |  Weekly {} · resets {}",
         h5_used,
@@ -437,17 +556,24 @@ fn update_tray(app: &tauri::AppHandle) {
         get(wk, "resets_in"),
     );
     if let Some(tray) = app.tray_by_id("main") {
-        let _ = tray.set_title(Some(title.as_str()));
         let _ = tray.set_tooltip(Some(tooltip.as_str()));
     }
     let h5_pct = h5_used.trim_end_matches('%').trim().parse::<f64>().ok();
     if let Some(n) = h5_pct {
-        // Clipped, not wrong, if usage ever prints 3 digits (100%) — the
-        // badge just renders every digit it's given (see render_badge_icon).
-        set_tray_badge(app, &(n.round() as i64).max(0).to_string());
+        let pct = n.max(0.0);
+        let label = (pct.round() as i64).to_string();
+        set_tray_icon(app, pct, ring, rgb, &label, text_scale);
     }
     let wk_pct = wk_used.trim_end_matches('%').trim().parse::<f64>().ok();
     check_usage_thresholds(app, h5_pct, wk_pct);
+}
+
+// Invoked by the Settings page after an icon color/mode change so the tray
+// updates immediately instead of on the next 60s poll tick. Cheap: cclimits is
+// read from its <60s cache, no network call.
+#[tauri::command]
+fn refresh_tray(app: tauri::AppHandle) {
+    update_tray(&app);
 }
 
 // Extracts every "$X/MTok" price in a line, in order (there's no pricing
@@ -582,6 +708,10 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_notification::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         .invoke_handler(tauri::generate_handler![
             commands::list_sessions,
             commands::read_sessions,
@@ -592,11 +722,24 @@ pub fn run() {
             commands::read_notify_settings,
             commands::write_notify_settings,
             commands::send_test_notification,
+            refresh_tray,
         ])
         .setup(|app| {
             // menu-bar app: no Dock icon on macOS
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
+
+            // Launch-at-startup defaults ON. Enable it once on first run (marker
+            // in the data dir), then leave it to the user's Settings toggle so we
+            // never re-enable what they turned off.
+            if let Ok(dir) = app.path().app_data_dir() {
+                let marker = dir.join("data").join("autostart.init");
+                if !marker.exists() {
+                    let _ = app.autolaunch().enable();
+                    let _ = std::fs::create_dir_all(dir.join("data"));
+                    let _ = std::fs::write(&marker, "1");
+                }
+            }
 
             let open = MenuItemBuilder::with_id("open", "Dashboard").build(app)?;
             let settings = MenuItemBuilder::with_id("settings", "Settings").build(app)?;
@@ -604,10 +747,10 @@ pub fn run() {
             let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
             let menu = MenuBuilder::new(app).items(&[&open, &settings, &about, &quit]).build()?;
 
-            let icon = Image::from_bytes(include_bytes!("../icons/tray.png"))?;
             TrayIconBuilder::with_id("main")
-                .icon(icon)
-                .icon_as_template(true)
+                // false: the icon is now user-colored (Icona settings); a template
+                // image would force it monochrome on macOS.
+                .icon_as_template(false)
                 .tooltip("CCTelemetry")
                 .menu(&menu)
                 .show_menu_on_left_click(false)
@@ -693,6 +836,32 @@ mod tests {
         assert_eq!(format_delta(-5), "Now");
         assert_eq!(format_delta(600), "10m");
         assert_eq!(format_delta(90 * 60), "1h 30m");
+    }
+
+    #[test]
+    fn arc_angle_maps_top_clockwise_and_fills_by_pct() {
+        use std::f64::consts::PI;
+        let tau = 2.0 * PI;
+        assert!(arc_angle(0.0, -1.0).abs() < 1e-9); // top = 0
+        assert!((arc_angle(1.0, 0.0) - PI / 2.0).abs() < 1e-9); // right = π/2
+        assert!((arc_angle(0.0, 1.0) - PI).abs() < 1e-9); // bottom = π
+        assert!((arc_angle(-1.0, 0.0) - 1.5 * PI).abs() < 1e-9); // left = 3π/2
+
+        let filled = |dx: f64, dy: f64, pct: f64| arc_angle(dx, dy) <= (pct / 100.0) * tau;
+        assert!(!filled(1.0, 0.0, 0.0)); // 0% → nothing filled
+        assert!(!filled(-1.0, 0.0, 0.0));
+        assert!(filled(1.0, 0.0, 100.0)); // 100% → whole band filled
+        assert!(filled(-1.0, 0.0, 100.0));
+        assert!(filled(1.0, 0.0, 50.0)); // 50% → 3 o'clock filled…
+        assert!(!filled(-1.0, 0.0, 50.0)); // …9 o'clock still track
+    }
+
+    #[test]
+    fn parse_hex_color_variants() {
+        assert_eq!(parse_hex_color("#9CA3AF"), [0x9C, 0xA3, 0xAF]);
+        assert_eq!(parse_hex_color("9ca3af"), [0x9C, 0xA3, 0xAF]);
+        assert_eq!(parse_hex_color("nope"), [0x9C, 0xA3, 0xAF]); // fallback gray
+        assert_eq!(parse_hex_color(""), [0x9C, 0xA3, 0xAF]);
     }
 
     #[test]

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024">
+  <!-- CCTelemetry "Pulse" app icon — cyan ECG waveform on a dark squircle.
+       Master source: rasterize to icon.png (1024) then `tauri icon` regenerates
+       every size / .icns / .ico. See docs/superpowers/specs/. -->
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1e2b3f"/>
+      <stop offset="1" stop-color="#0a111e"/>
+    </linearGradient>
+  </defs>
+  <rect x="34" y="34" width="956" height="956" rx="230" fill="url(#bg)"/>
+  <rect x="34" y="34" width="956" height="956" rx="230" fill="none" stroke="#ffffff" stroke-opacity="0.07" stroke-width="13"/>
+  <polyline points="171,529 341,529 410,529 461,444 512,256 572,700 623,529 683,529 853,529"
+    fill="none" stroke="#22D3EE" stroke-width="55" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

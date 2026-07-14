@@ -6,6 +6,9 @@
   "permissions": [
     "core:default",
     "updater:default",
-    "notification:default"
+    "notification:default",
+    "autostart:allow-enable",
+    "autostart:allow-disable",
+    "autostart:allow-is-enabled"
   ]
 }

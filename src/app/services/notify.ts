@@ -6,9 +6,19 @@ export interface NotifySettings {
   enabled: boolean;
   fiveHourThreshold: number;
   weeklyThreshold: number;
+  iconColor: string;
+  iconMode: 'ring' | 'text';
+  iconTextScale: number;
 }
 
-export const DEFAULT_NOTIFY_SETTINGS: NotifySettings = { enabled: false, fiveHourThreshold: 80, weeklyThreshold: 80 };
+export const DEFAULT_NOTIFY_SETTINGS: NotifySettings = {
+  enabled: false,
+  fiveHourThreshold: 80,
+  weeklyThreshold: 80,
+  iconColor: '9CA3AF', // hex without '#', matching p-colorpicker's native value format
+  iconMode: 'ring',
+  iconTextScale: 6, // text-only glyph scale (2–8); larger fills more of the menu bar
+};
 
 // Persists the usage-threshold notification preferences (Settings page)
 // through the same read/write-JSON-file Tauri commands UsageService uses

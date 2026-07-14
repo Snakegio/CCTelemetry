@@ -1,6 +1,6 @@
 [package]
 name = "cctelemetry"
-version = "0.2.4"
+version = "0.2.5"
 description = "Menu bar / tray app for Claude Code token telemetry"
 license = "MIT"
 edition = "2021"
@@ -19,6 +19,7 @@ tauri-build = { version = "2", features = [] }
 tauri = { version = "2", features = ["tray-icon", "image-png"] }
 tauri-plugin-updater = "2"
 tauri-plugin-notification = "2"
+tauri-plugin-autostart = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 ureq = "2"

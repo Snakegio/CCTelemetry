@@ -4,6 +4,11 @@
   <h1 class="text-[1.1rem] font-semibold mb-6">Settings</h1>
 
   <div class="flex items-center justify-between mb-6">
+    <span class="text-[13px] text-[var(--color-text)]">Launch at startup</span>
+    <p-toggleswitch [ngModel]="autostart()" (ngModelChange)="setAutostart($event)" />
+  </div>
+
+  <div class="flex items-center justify-between mb-6">
     <span class="text-[13px] text-[var(--color-text)]">Enable notifications</span>
     <p-toggleswitch [ngModel]="settings().enabled" (ngModelChange)="setEnabled($event)" />
   </div>
@@ -52,4 +57,33 @@
   >
     Send test notification
   </button>
+
+  <hr class="my-8 border-[var(--hairline)]" />
+
+  <h2 class="text-[1.1rem] font-semibold mb-6">Icon</h2>
+
+  <div class="flex items-center justify-between mb-6">
+    <span class="text-[13px] text-[var(--color-text)]">Tray color</span>
+    <p-colorpicker [ngModel]="settings().iconColor" (ngModelChange)="setIconColor($event)" />
+  </div>
+
+  <div class="flex items-center justify-between">
+    <span class="text-[13px] text-[var(--color-text)]">
+      {{ settings().iconMode === 'ring' ? 'Ring with percentage' : 'Text only (e.g. 75)' }}
+    </span>
+    <p-toggleswitch [ngModel]="settings().iconMode === 'ring'" (ngModelChange)="setIconMode($event)" />
+  </div>
+
+  @if (settings().iconMode === 'text') {
+    <div class="mt-6">
+      <label class="text-[13px] text-[var(--color-text)] mb-2 block">Text size ({{ settings().iconTextScale }})</label>
+      <p-slider
+        [ngModel]="settings().iconTextScale"
+        (ngModelChange)="setIconTextScale($event)"
+        [min]="2"
+        [max]="8"
+        [step]="1"
+      />
+    </div>
+  }
 </div>
