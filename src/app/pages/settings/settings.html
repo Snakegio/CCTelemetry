@@ -86,4 +86,23 @@
       />
     </div>
   }
+
+  <hr class="my-8 border-[var(--hairline)]" />
+
+  <h2 class="text-[1.1rem] font-semibold mb-2">Hints</h2>
+  <p class="text-[12px] text-[var(--muted)] mb-4">
+    Bring back the Analysis findings and dashboard suggestions you've dismissed.
+  </p>
+  <div class="flex items-center gap-3">
+    <button
+      type="button"
+      class="text-[13px] text-[var(--color-text)] border border-[var(--hairline)] rounded-md px-3 py-1.5 hover:bg-[var(--wash)] cursor-pointer"
+      (click)="resetDismissed()"
+    >
+      Reset dismissed hints
+    </button>
+    @if (dismissedCleared()) {
+      <span class="text-[12px] text-[var(--color-accent)]">Done — they'll reappear when you revisit those pages.</span>
+    }
+  </div>
 </div>

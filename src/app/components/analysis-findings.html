@@ -1,0 +1,36 @@
+@if (visible().length) {
+  <div class="flex flex-col gap-3">
+    @for (f of visible(); track f.id) {
+      <p-card>
+        <div class="flex items-center justify-between mb-[.7rem] gap-2">
+          <span class="text-[10px] font-semibold tracking-[.08em] uppercase rounded-full px-[8px] py-[2px] bg-[var(--color-surface)] text-[var(--muted)]">{{ categoryLabel(f.category) }}</span>
+          <span class="num text-[11px] text-[var(--muted)] ml-auto">{{ fmtTokens(f.impactTokens) }} tok</span>
+          <button
+            (click)="dismiss(f.id)"
+            title="Dismiss this finding"
+            aria-label="Dismiss this finding"
+            class="flex-none w-[22px] h-[22px] inline-flex items-center justify-center rounded-[var(--radius-sm)] text-[var(--muted)] hover:text-[var(--color-text)] hover:bg-[var(--color-surface)] cursor-pointer text-[14px] leading-none"
+          >
+            ✕
+          </button>
+        </div>
+        <div class="flex items-start gap-[.9rem]">
+          <div class="flex flex-col items-center justify-center flex-none w-[74px]">
+            <div class="num text-[1.5rem] font-[650] leading-[1.05]">{{ f.metric }}</div>
+            <div class="text-[9.5px] tracking-[.04em] uppercase text-[var(--muted)] text-center leading-[1.2] mt-[2px]">{{ f.metricLabel }}</div>
+          </div>
+          <div class="flex-1 min-w-0">
+            <div class="font-semibold text-[.88rem] truncate" [title]="f.title">{{ f.title }}</div>
+            <div class="text-[.8rem] text-[var(--muted)] mt-[2px]">{{ f.detail }}</div>
+            <div class="text-[.82rem] font-medium text-[var(--color-accent)] mt-[.5rem] flex items-start gap-[.4rem]">
+              <span class="flex-none">→</span>
+              <span class="flex-1">{{ f.action }}</span>
+            </div>
+          </div>
+        </div>
+      </p-card>
+    }
+  </div>
+} @else {
+  <div class="text-[.85rem] text-[var(--muted)]">No findings for the current filters — nice and clean.</div>
+}

@@ -742,10 +742,11 @@ pub fn run() {
             }
 
             let open = MenuItemBuilder::with_id("open", "Dashboard").build(app)?;
+            let analysis = MenuItemBuilder::with_id("analysis", "Analysis").build(app)?;
             let settings = MenuItemBuilder::with_id("settings", "Settings").build(app)?;
             let about = MenuItemBuilder::with_id("about", "About").build(app)?;
             let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
-            let menu = MenuBuilder::new(app).items(&[&open, &settings, &about, &quit]).build()?;
+            let menu = MenuBuilder::new(app).items(&[&open, &analysis, &settings, &about, &quit]).build()?;
 
             TrayIconBuilder::with_id("main")
                 // false: the icon is now user-colored (Icona settings); a template
@@ -758,6 +759,10 @@ pub fn run() {
                     "open" => {
                         show_main(app);
                         let _ = app.emit("navigate", "dashboard");
+                    }
+                    "analysis" => {
+                        show_main(app);
+                        let _ = app.emit("navigate", "analysis");
                     }
                     "settings" => {
                         show_main(app);

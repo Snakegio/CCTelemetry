@@ -1,0 +1,13 @@
+<div class="max-w-[1600px] mx-auto">
+  <app-header>
+    <app-filters [projects]="usage()?.projects || []" [filters]="filters()" (filtersChange)="onFilters($event)" />
+  </app-header>
+
+  @if (usage(); as u) {
+    @if (u.totals.tokens < 10000) {
+      <div class="text-[.85rem] text-[var(--muted)]">Not enough data yet for the current filters — try a wider period.</div>
+    } @else {
+      <app-analysis-findings [findings]="findings()" />
+    }
+  }
+</div>

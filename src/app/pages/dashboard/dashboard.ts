@@ -2,6 +2,7 @@ import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular
 import { buildColorMap, categoricalPalette } from '../../core/colors';
 import { type Filters, suggestions } from '../../core/core';
 import { basename, fmtCost, fmtExact, fmtTokens } from '../../core/format';
+import { FiltersStore } from '../../services/filters-store';
 import { type Usage, UsageService } from '../../services/usage.service';
 import type { Cell, Column } from '../../components/data-table.component';
 import { DataTableComponent } from '../../components/data-table.component';
@@ -38,10 +39,11 @@ const PREV_LABEL: Record<string, string> = { today: 'day', '7d': '7 days', '30d'
 })
 export class Dashboard implements OnInit, OnDestroy {
   private usageService = inject(UsageService);
+  private filtersStore = inject(FiltersStore);
   private timer?: ReturnType<typeof setInterval>;
 
   usage = signal<Usage | null>(null);
-  filters = signal<Filters>({ range: 'today', projects: [], from: '', to: '' });
+  filters = this.filtersStore.filters;
 
   colorMap = computed(() => {
     const u = this.usage();

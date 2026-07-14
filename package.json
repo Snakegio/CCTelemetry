@@ -10,7 +10,7 @@
     "watch": "ng build --watch --configuration development",
     "tauri": "tauri",
     "dev": "tauri dev",
-    "test:core": "tsx src/app/core/core.selfcheck.ts",
+    "test:core": "tsx src/app/core/core.selfcheck.ts && tsx src/app/core/analysis.selfcheck.ts",
     "version": "node scripts/sync-version.js && git add src-tauri/Cargo.toml src-tauri/Cargo.lock PKGBUILD"
   },
   "dependencies": {

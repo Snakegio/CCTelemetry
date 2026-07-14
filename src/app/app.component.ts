@@ -13,7 +13,7 @@ export class AppComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     listen<string>('navigate', (e) => {
-      if (e.payload === 'dashboard' || e.payload === 'about' || e.payload === 'settings') {
+      if (e.payload === 'dashboard' || e.payload === 'analysis' || e.payload === 'about' || e.payload === 'settings') {
         this.router.navigateByUrl(e.payload === 'dashboard' ? '/' : `/${e.payload}`);
       }
     }).then((unlisten) => (this.unlistenNavigate = unlisten));

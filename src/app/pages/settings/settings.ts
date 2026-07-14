@@ -21,6 +21,7 @@ export class Settings implements OnInit {
   // Reflects the actual OS launch-at-startup registration (source of truth is
   // the autostart plugin, not settings.json).
   autostart = signal(true);
+  dismissedCleared = signal(false);
 
   async ngOnInit(): Promise<void> {
     this.settings.set(await this.notify.load());
@@ -58,6 +59,19 @@ export class Settings implements OnInit {
 
   async sendTestNotification(): Promise<void> {
     await this.notify.sendTest();
+  }
+
+  // Clears the persisted dismissals for the Analysis findings and the dashboard
+  // suggestions; those views re-read localStorage when re-entered, so cleared
+  // hints reappear on next navigation.
+  resetDismissed(): void {
+    try {
+      localStorage.removeItem('dismissedFindings');
+      localStorage.removeItem('dismissedSuggestions');
+    } catch {
+      // storage unavailable — nothing to clear
+    }
+    this.dismissedCleared.set(true);
   }
 
   async setIconColor(value: string): Promise<void> {

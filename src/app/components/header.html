@@ -1,28 +1,28 @@
 <header
-  class="sticky top-0 z-40 -mx-4 px-4 py-3 mb-6 flex items-center gap-4 flex-wrap backdrop-blur-md bg-[color-mix(in_srgb,var(--color-bg)_88%,transparent)] border-b border-[var(--color-divider)]"
+        class="sticky top-0 z-40 -mx-4 px-4 py-3 mb-6 flex items-center gap-4 flex-wrap backdrop-blur-md bg-[color-mix(in_srgb,var(--color-bg)_88%,transparent)] border-b border-(--color-divider)"
 >
-  <div class="flex items-center gap-[11px] mr-auto min-w-0">
-    <svg width="26" height="26" viewBox="0 0 24 24" class="flex-none">
-      <g class="stroke-[var(--color-accent)]" stroke-width="2.1" stroke-linecap="round">
-        <line x1="12" y1="3" x2="12" y2="21"></line>
-        <line x1="3" y1="12" x2="21" y2="12"></line>
-        <line x1="5.6" y1="5.6" x2="18.4" y2="18.4"></line>
-        <line x1="18.4" y1="5.6" x2="5.6" y2="18.4"></line>
-      </g>
-    </svg>
-    <div class="min-w-0">
-      <div class="font-semibold text-[15px] tracking-[-.01em] leading-[1.1] whitespace-nowrap">CCTelemetry</div>
-      <div class="text-[11px] text-[var(--muted)] leading-[1.1]">Claude Code token usage</div>
+    <div class="flex items-center gap-2.75 mr-auto min-w-0">
+        <img ngSrc="assets/icon.png" [height]="32" [width]="32" alt="logo" height="128" width="128">
+        <div class="min-w-0">
+            <div class="font-semibold text-[15px] tracking-[-.01em] leading-[1.1] whitespace-nowrap">CCTelemetry</div>
+            <div class="text-[11px] text-(--muted) leading-[1.1]">Claude Code token usage</div>
+        </div>
     </div>
-  </div>
 
-  <ng-content />
+    <nav class="flex items-center gap-1 text-[13px]">
+        <a routerLink="/" routerLinkActive="bg-(--color-surface) text-(--color-text)" [routerLinkActiveOptions]="{exact: true}"
+           class="px-2.5 py-1.5 rounded-md text-(--muted) hover:text-(--color-text)">Dashboard</a>
+        <a routerLink="/analysis" routerLinkActive="bg-(--color-surface) text-(--color-text)"
+           class="px-2.5 py-1.5 rounded-md text-(--muted) hover:text-(--color-text)">Analysis</a>
+    </nav>
 
-  <button
-    (click)="theme.toggle()"
-    title="Toggle theme"
-    class="w-[34px] h-[34px] flex-none inline-flex items-center justify-center bg-[var(--color-surface)] border border-[var(--color-divider)] rounded-[var(--radius-md)] cursor-pointer text-[var(--color-text)] text-[15px]"
-  >
-    {{ themeIcon() }}
-  </button>
+    <ng-content/>
+
+    <button
+            (click)="theme.toggle()"
+            title="Toggle theme"
+            class="w-8.5 h-8.5 flex-none inline-flex items-center justify-center bg-(--color-surface) border border-(--color-divider) rounded-md cursor-pointer text-(--color-text) text-[15px]"
+    >
+        {{ themeIcon() }}
+    </button>
 </header>

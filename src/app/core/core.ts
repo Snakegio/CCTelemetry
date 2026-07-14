@@ -62,6 +62,8 @@ export interface ProjectRow {
   tokens: number;
   cost: number;
   costIncomplete: boolean;
+  cacheReadPct: number;
+  nonCachedInputTokens: number;
 }
 
 export interface ModelRow {
@@ -69,6 +71,16 @@ export interface ModelRow {
   tokens: number;
   cost: number;
   costIncomplete: boolean;
+  directResponseTokens: number;
+}
+
+export interface ToolStreak {
+  sessionId: string;
+  project: string;
+  label: string;
+  tool: string;
+  count: number;
+  tokens: number;
 }
 
 export interface SessionRow {
@@ -129,6 +141,8 @@ export interface UsageResult {
   liveSession: LiveSession | null;
   subagents: Subagents;
   projects: string[];
+  toolStreaks: ToolStreak[];
+  medianSessionCost: number;
 }
 
 export interface Suggestion {
@@ -360,6 +374,28 @@ interface ToolBucket {
   children?: Map<string, ToolBucket>;
 }
 
+interface ProjectAccum {
+  project: string;
+  tokens: number;
+  cost: number;
+  costIncomplete: boolean;
+  fresh: number;
+  cacheWrite: number;
+  cacheRead: number;
+}
+
+function cacheReadPctOf(a: { fresh: number; cacheWrite: number; cacheRead: number }): number {
+  const total = a.fresh + a.cacheWrite + a.cacheRead;
+  return total ? (a.cacheRead / total) * 100 : 0;
+}
+
+function median(nums: number[]): number {
+  if (!nums.length) return 0;
+  const sorted = [...nums].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  return sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2;
+}
+
 // fileEntries: [{turns, mtimeMs}] — all parsed session files.
 // storedHistory: object date->entry (mutated via mergeDaily) or null.
 export function aggregate(
@@ -385,13 +421,16 @@ export function aggregate(
   const toolBuckets = new Map<string, ToolBucket>();
   const mcpServers = new Map<string, ToolBucket>();
   const skillGroup: ToolBucket = { tokens: 0, cost: 0, costIncomplete: false, calls: 0, drilldown: new Map(), children: new Map() };
-  const projectBuckets = new Map<string, ProjectRow>();
+  const projectBuckets = new Map<string, ProjectAccum>();
   const modelBuckets = new Map<string, ModelRow>();
   const sessionBuckets = new Map<string, SessionRow>();
   const dailyBuckets = new Map<string, DailyEntry>();
   const projectsSeen = new Set<string>();
   const cacheEff = { fresh: 0, cacheWrite: 0, cacheRead: 0 };
   const subagents = { tokens: 0, cost: 0, costIncomplete: false };
+  // sessionId -> ordered single-tool calls, used to detect repeated-tool streaks below.
+  // ponytail: turns with 0 or >1 tools break a streak rather than joining one — good enough signal without sequencing multi-tool turns.
+  const sessionToolSeq = new Map<string, { tool: string; ts: number; tokens: number }[]>();
 
   function newBucket(): ToolBucket {
     return { tokens: 0, cost: 0, costIncomplete: false, calls: 0, drilldown: new Map() };
@@ -492,16 +531,20 @@ export function aggregate(
       }
     }
 
-    const proj = bucket(projectBuckets, turn.cwd, () => ({ project: turn.cwd, tokens: 0, cost: 0, costIncomplete: false }));
+    const proj = bucket(projectBuckets, turn.cwd, () => ({ project: turn.cwd, tokens: 0, cost: 0, costIncomplete: false, fresh: 0, cacheWrite: 0, cacheRead: 0 }));
     proj.tokens += tokens;
     if (cost === null) proj.costIncomplete = true;
     else proj.cost += cost;
+    proj.fresh += turn.usage.input_tokens || 0;
+    proj.cacheWrite += turn.usage.cache_creation_input_tokens || 0;
+    proj.cacheRead += turn.usage.cache_read_input_tokens || 0;
 
     const modelName = turn.model || 'unknown';
-    const mod = bucket(modelBuckets, modelName, () => ({ model: modelName, tokens: 0, cost: 0, costIncomplete: false }));
+    const mod = bucket(modelBuckets, modelName, () => ({ model: modelName, tokens: 0, cost: 0, costIncomplete: false, directResponseTokens: 0 }));
     mod.tokens += tokens;
     if (cost === null) mod.costIncomplete = true;
     else mod.cost += cost;
+    if (turn.tools.size === 0) mod.directResponseTokens += tokens;
 
     const sess = bucket(sessionBuckets, turn.sessionId, () => ({
       project: turn.cwd,
@@ -514,6 +557,11 @@ export function aggregate(
     sess.tokens += tokens;
     if (cost === null) sess.costIncomplete = true;
     else sess.cost += cost;
+
+    if (turn.tools.size === 1 && turn.timestamp) {
+      const seq = bucket(sessionToolSeq, turn.sessionId, () => []);
+      seq.push({ tool: [...turn.tools][0], ts: new Date(turn.timestamp).getTime(), tokens });
+    }
   }
 
   function serializeDrilldown(map: Map<string, DrilldownRow>): DrilldownRow[] {
@@ -553,11 +601,35 @@ export function aggregate(
       : []),
   ].sort((a, b) => b.tokens - a.tokens);
 
-  const byProject = [...projectBuckets.values()].sort((a, b) => b.tokens - a.tokens);
+  const byProject: ProjectRow[] = [...projectBuckets.values()]
+    .map((p) => ({ project: p.project, tokens: p.tokens, cost: p.cost, costIncomplete: p.costIncomplete, cacheReadPct: cacheReadPctOf(p), nonCachedInputTokens: p.fresh + p.cacheWrite }))
+    .sort((a, b) => b.tokens - a.tokens);
 
   const byModel = [...modelBuckets.values()].sort((a, b) => b.tokens - a.tokens);
 
   const topSessions = [...sessionBuckets.values()].sort((a, b) => b.tokens - a.tokens).slice(0, 10);
+  const medianSessionCost = median([...sessionBuckets.values()].map((s) => s.cost));
+
+  // ponytail: only streaks >= 5, capped to top 20 by length — enough signal without a huge payload on the "all" range
+  const toolStreaks: ToolStreak[] = [];
+  for (const [sessionId, seq] of sessionToolSeq) {
+    seq.sort((a, b) => a.ts - b.ts);
+    let i = 0;
+    while (i < seq.length) {
+      let j = i;
+      while (j + 1 < seq.length && seq[j + 1].tool === seq[i].tool) j++;
+      const count = j - i + 1;
+      if (count >= 5) {
+        const sessRow = sessionBuckets.get(sessionId);
+        let streakTokens = 0;
+        for (let k = i; k <= j; k++) streakTokens += seq[k].tokens;
+        toolStreaks.push({ sessionId, project: sessRow?.project ?? 'unknown', label: sessRow?.label ?? sessionId, tool: seq[i].tool, count, tokens: streakTokens });
+      }
+      i = j + 1;
+    }
+  }
+  toolStreaks.sort((a, b) => b.count - a.count);
+  toolStreaks.length = Math.min(toolStreaks.length, 20);
 
   let historyChanged = false;
   let dailyEntries = [...dailyBuckets.values()];
@@ -624,7 +696,7 @@ export function aggregate(
 
   const projects = [...projectsSeen].sort();
   return {
-    result: { totals, byTool, byProject, byModel, cacheEfficiency, daily, topSessions, liveSession, subagents: subagentsOut, projects },
+    result: { totals, byTool, byProject, byModel, cacheEfficiency, daily, topSessions, liveSession, subagents: subagentsOut, projects, toolStreaks, medianSessionCost },
     historyChanged,
   };
 }
