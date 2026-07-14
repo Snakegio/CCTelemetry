@@ -1,14 +1,13 @@
-import { Component, OnInit, inject, signal } from '@angular/core';
-import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
-import { SliderModule } from 'primeng/slider';
-import { ToggleSwitchModule } from 'primeng/toggleswitch';
-import { Header } from '../../components/header';
-import { DEFAULT_NOTIFY_SETTINGS, Notify, type NotifySettings } from '../../services/notify';
+import {Component, inject, OnInit, signal} from '@angular/core';
+import {FormsModule} from '@angular/forms';
+import {SliderModule} from 'primeng/slider';
+import {ToggleSwitchModule} from 'primeng/toggleswitch';
+import {Header} from '../../components/header';
+import {DEFAULT_NOTIFY_SETTINGS, Notify, type NotifySettings} from '../../services/notify';
 
 @Component({
   selector: 'app-settings',
-  imports: [FormsModule, RouterLink, SliderModule, ToggleSwitchModule, Header],
+  imports: [FormsModule, SliderModule, ToggleSwitchModule, Header],
   templateUrl: './settings.html',
 })
 export class Settings implements OnInit {

@@ -1,10 +1,9 @@
-import { Component } from '@angular/core';
-import { RouterLink } from '@angular/router';
-import { Header } from '../../components/header';
+import {Component} from '@angular/core';
+import {Header} from '../../components/header';
 
 @Component({
   selector: 'app-about',
-  imports: [RouterLink, Header],
+  imports: [Header],
   templateUrl: './about.html',
 })
 export class About {}
