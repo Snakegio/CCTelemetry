@@ -41,6 +41,10 @@ export class Settings implements OnInit {
     this.update({ weeklyThreshold: value });
   }
 
+  async sendTestNotification(): Promise<void> {
+    await this.notify.sendTest();
+  }
+
   private update(patch: Partial<NotifySettings>): void {
     const next = { ...this.settings(), ...patch };
     this.settings.set(next);

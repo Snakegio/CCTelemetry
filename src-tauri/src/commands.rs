@@ -152,3 +152,16 @@ pub fn write_notify_settings(app: tauri::AppHandle, json: String) -> Result<(), 
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     std::fs::write(dir.join("settings.json"), json).map_err(|e| e.to_string())
 }
+
+// Fires an immediate native notification so the user can confirm OS delivery
+// works, independent of the threshold-crossing logic in lib.rs.
+#[tauri::command]
+pub fn send_test_notification(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_notification::NotificationExt;
+    app.notification()
+        .builder()
+        .title("CCTelemetry")
+        .body("This is a test notification from CCTelemetry.")
+        .show()
+        .map_err(|e| e.to_string())
+}

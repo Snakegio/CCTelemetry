@@ -591,17 +591,18 @@ pub fn run() {
             commands::write_history,
             commands::read_notify_settings,
             commands::write_notify_settings,
+            commands::send_test_notification,
         ])
         .setup(|app| {
             // menu-bar app: no Dock icon on macOS
             #[cfg(target_os = "macos")]
             app.set_activation_policy(tauri::ActivationPolicy::Accessory);
 
-            let open = MenuItemBuilder::with_id("open", "Open dashboard").build(app)?;
-            let about = MenuItemBuilder::with_id("about", "About").build(app)?;
+            let open = MenuItemBuilder::with_id("open", "Dashboard").build(app)?;
             let settings = MenuItemBuilder::with_id("settings", "Settings").build(app)?;
+            let about = MenuItemBuilder::with_id("about", "About").build(app)?;
             let quit = MenuItemBuilder::with_id("quit", "Quit").build(app)?;
-            let menu = MenuBuilder::new(app).items(&[&open, &about, &settings, &quit]).build()?;
+            let menu = MenuBuilder::new(app).items(&[&open, &settings, &about, &quit]).build()?;
 
             let icon = Image::from_bytes(include_bytes!("../icons/tray.png"))?;
             TrayIconBuilder::with_id("main")
@@ -615,13 +616,13 @@ pub fn run() {
                         show_main(app);
                         let _ = app.emit("navigate", "dashboard");
                     }
-                    "about" => {
-                        show_main(app);
-                        let _ = app.emit("navigate", "about");
-                    }
                     "settings" => {
                         show_main(app);
                         let _ = app.emit("navigate", "settings");
+                    }
+                    "about" => {
+                        show_main(app);
+                        let _ = app.emit("navigate", "about");
                     }
                     "quit" => app.exit(0),
                     _ => {}

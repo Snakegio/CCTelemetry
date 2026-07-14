@@ -39,4 +39,8 @@ export class Notify {
     const result = await requestPermission();
     return result === 'granted';
   }
+
+  async sendTest(): Promise<void> {
+    await invoke('send_test_notification');
+  }
 }
