@@ -61,13 +61,12 @@ export class Settings implements OnInit {
     await this.notify.sendTest();
   }
 
-  // Clears the persisted dismissals for the Analysis findings and the dashboard
-  // suggestions; those views re-read localStorage when re-entered, so cleared
-  // hints reappear on next navigation.
+  // Clears the persisted dismissals for the Analysis findings; that page
+  // re-reads localStorage when re-entered, so cleared findings reappear on
+  // next navigation.
   resetDismissed(): void {
     try {
       localStorage.removeItem('dismissedFindings');
-      localStorage.removeItem('dismissedSuggestions');
     } catch {
       // storage unavailable — nothing to clear
     }

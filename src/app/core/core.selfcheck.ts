@@ -1,47 +1,7 @@
 // Self-check for the pure aggregation core: `npm run test:core` (tsx). Excluded
 // from the Angular build (tsconfig.app.json) — it uses node's assert.
 import assert from 'node:assert';
-import { aggregate, previousRangeFilters, suggestions, type UsageResult } from './core';
-
-// suggestions() accepts partial shapes here; cast since these are hand-built.
-const sug = (d: unknown) => suggestions(d as UsageResult);
-
-const base = {
-  totals: { tokens: 100000, cost: 10, costIncomplete: false },
-  byModel: [],
-  byTool: [],
-  cacheEfficiency: { cacheReadPct: 80 },
-  subagents: { pct: 0 },
-  liveSession: null,
-  daily: [],
-};
-
-assert.deepStrictEqual(sug({ ...base, totals: { tokens: 500, cost: 0.1 } }), [], 'too little data → no suggestions');
-
-const lowCache = sug({ ...base, cacheEfficiency: { cacheReadPct: 5 } });
-assert.ok(lowCache.some((s) => s.id === 'cache-low'), 'low cache read triggers cache-low');
-
-const modelSkew = sug({
-  ...base,
-  byModel: [{ model: 'claude-opus', tokens: 10000, cost: 8, costIncomplete: false }],
-});
-assert.ok(modelSkew.some((s) => s.id === 'model-skew-claude-opus'), 'cost/token skew triggers model-skew');
-
-const toolDominant = sug({
-  ...base,
-  byTool: [{ name: 'code-review', tokens: 40000 }],
-});
-assert.ok(toolDominant.some((s) => s.id === 'tool-dominant-code-review'), 'dominant tool triggers tool-dominant');
-
-const subagentsHeavy = sug({ ...base, subagents: { pct: 50 } });
-assert.ok(subagentsHeavy.some((s) => s.id === 'subagents-heavy'), 'heavy subagent share triggers subagents-heavy');
-
-const contextFull = sug({ ...base, liveSession: { contextLeftPct: 5 } });
-assert.ok(contextFull.some((s) => s.id === 'context-full'), 'near-full context triggers context-full');
-
-const spikeDays = [1, 1, 1, 1, 1, 10].map((cost, i) => ({ date: `2026-07-0${i + 1}`, cost }));
-const spike = sug({ ...base, daily: spikeDays });
-assert.ok(spike.some((s) => s.id === 'daily-spike'), 'cost spike vs prior days triggers daily-spike');
+import { aggregate, previousRangeFilters } from './core';
 
 // aggregate() / rangeBounds() checks
 const mkEntry = (cwd: string, ts: string, tokens: number) => ({
@@ -158,4 +118,4 @@ const prev7d = previousRangeFilters({ range: '7d' }, NOW)!;
 assert.strictEqual(prev7d.from, '2026-06-26', 'previous period for 7d starts 14 days back');
 assert.strictEqual(prev7d.to, '2026-07-03', 'previous period for 7d ends 7 days back');
 
-console.log('core.ts suggestions() self-check: OK');
+console.log('core.ts self-check: OK');

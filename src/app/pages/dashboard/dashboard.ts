@@ -1,6 +1,8 @@
 import { Component, computed, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { buildColorMap, categoricalPalette } from '../../core/colors';
-import { type Filters, suggestions } from '../../core/core';
+import { analyzeUsage } from '../../core/analysis';
+import { type Filters } from '../../core/core';
 import { basename, fmtCost, fmtExact, fmtTokens } from '../../core/format';
 import { FiltersStore } from '../../services/filters-store';
 import { type Usage, UsageService } from '../../services/usage.service';
@@ -12,7 +14,6 @@ import { FiltersComponent } from '../../components/filters.component';
 import { Header } from '../../components/header';
 import { LiveStripComponent } from '../../components/live-strip.component';
 import { StatTilesComponent } from '../../components/stat-tiles.component';
-import { SuggestionsComponent } from '../../components/suggestions.component';
 import { TokenShareComponent } from '../../components/token-share.component';
 import { ToolBreakdownComponent } from '../../components/tool-breakdown.component';
 import { UsageChartComponent } from '../../components/usage-chart.component';
@@ -24,11 +25,11 @@ const PREV_LABEL: Record<string, string> = { today: 'day', '7d': '7 days', '30d'
   selector: 'app-dashboard',
   imports: [
     Header,
+    RouterLink,
     FiltersComponent,
     WarnBannerComponent,
     LiveStripComponent,
     StatTilesComponent,
-    SuggestionsComponent,
     ToolBreakdownComponent,
     TokenShareComponent,
     UsageChartComponent,
@@ -49,9 +50,9 @@ export class Dashboard implements OnInit, OnDestroy {
     const u = this.usage();
     return u ? buildColorMap(u.daily) : null;
   });
-  suggestionsList = computed(() => {
+  findingsCount = computed(() => {
     const u = this.usage();
-    return u ? suggestions(u) : [];
+    return u ? analyzeUsage(u).length : 0;
   });
   liveVisible = computed(() => !!this.usage()?.liveSession && this.filters().range === 'today');
 

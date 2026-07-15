@@ -1,6 +1,6 @@
-// Deeper, category-focused rules on top of aggregate() output — a companion
-// to suggestions() in core.ts, kept in its own file so core.ts doesn't keep
-// growing with interpretation logic on top of aggregation logic.
+// Category-focused rules on top of aggregate() output, kept in its own file
+// so core.ts doesn't keep growing with interpretation logic on top of
+// aggregation logic.
 import { basename } from './format';
 import { pricingFor, type UsageResult } from './core';
 

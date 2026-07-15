@@ -145,11 +145,6 @@ export interface UsageResult {
   medianSessionCost: number;
 }
 
-export interface Suggestion {
-  id: string;
-  text: string;
-}
-
 interface PriceTier {
   key: string;
   match: RegExp;
@@ -709,69 +704,3 @@ export function summaryLine(d: UsageResult): string {
   return parts.join(' · ');
 }
 
-// Simple heuristic rules over the aggregate() output. Each rule is a fixed
-// threshold, not a model of "ideal" usage — tune the numbers below if they
-// fire too often/rarely on real data.
-// ponytail: hardcoded thresholds, revisit if users report noisy/missing suggestions
-export function suggestions(d: UsageResult): Suggestion[] {
-  const out: Suggestion[] = [];
-  const totalTokens = d.totals.tokens;
-  if (!totalTokens || totalTokens < 10000) return out; // too little data to say anything useful
-
-  if (d.cacheEfficiency.cacheReadPct < 20) {
-    out.push({
-      id: 'cache-low',
-      text: `Only ${d.cacheEfficiency.cacheReadPct.toFixed(0)}% of tokens come from cache. Reusing the same context across nearby requests in the same session cuts cost per token.`,
-    });
-  }
-
-  for (const m of d.byModel) {
-    if (!m.tokens || m.costIncomplete || !d.totals.cost) continue;
-    const tokenShare = m.tokens / totalTokens;
-    const costShare = m.cost / d.totals.cost;
-    if (tokenShare > 0.05 && costShare - tokenShare > 0.25) {
-      out.push({
-        id: 'model-skew-' + m.model,
-        text: `"${m.model}" drives ${(costShare * 100).toFixed(0)}% of spend but only ${(tokenShare * 100).toFixed(0)}% of tokens. If many of these are simple tasks, try a cheaper model.`,
-      });
-    }
-  }
-
-  for (const t of d.byTool) {
-    const share = t.tokens / totalTokens;
-    if (share > 0.35) {
-      out.push({
-        id: 'tool-dominant-' + t.name,
-        text: `"${t.name}" alone accounts for ${(share * 100).toFixed(0)}% of total tokens. If it's called more often than needed, consider limiting its use.`,
-      });
-    }
-  }
-
-  if (d.subagents.pct > 30) {
-    out.push({
-      id: 'subagents-heavy',
-      text: `${d.subagents.pct.toFixed(0)}% of tokens come from subagents. If their tasks are repetitive, consider merging requests instead of dispatching many parallel agents.`,
-    });
-  }
-
-  if (d.liveSession && d.liveSession.contextLeftPct < 10) {
-    out.push({
-      id: 'context-full',
-      text: `The active session is using ${(100 - d.liveSession.contextLeftPct).toFixed(0)}% of the context window. Starting a new session now avoids costly regenerations.`,
-    });
-  }
-
-  if (d.daily.length >= 6) {
-    const todayEntry = d.daily[d.daily.length - 1];
-    const prior = d.daily.slice(-7, -1);
-    const priorAvg = prior.reduce((sum, e) => sum + e.cost, 0) / prior.length;
-    if (priorAvg > 0 && todayEntry.cost > priorAvg * 2.5) {
-      out.push({
-        id: 'daily-spike',
-        text: `Today's usage is about ${(todayEntry.cost / priorAvg).toFixed(1)}x the average of recent days. Check whether that's expected or a tool is running out of control.`,
-      });
-    }
-  }
-
-  return out;
-}

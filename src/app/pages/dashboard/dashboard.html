@@ -11,7 +11,15 @@
     @if (prevLabel(); as pl) {
       <div class="text-[11px] text-[var(--muted)] mx-[2px] mb-[22px]">▲▼ shown against the previous {{ pl }} · sparklines are the last 14 days</div>
     }
-    <app-suggestions [suggestions]="suggestionsList()" />
+    @if (findingsCount(); as count) {
+      <a
+        routerLink="/analysis"
+        class="flex items-center justify-between gap-2 mb-9 px-4 py-3 rounded-md border border-[var(--hairline)] hover:bg-[var(--wash)] text-[.85rem] text-[var(--color-text)]"
+      >
+        <span>{{ count }} finding{{ count > 1 ? 's' : '' }} in Analysis</span>
+        <span class="text-[var(--color-accent)]">View →</span>
+      </a>
+    }
 
     @if (colorMap(); as cm) {
       <div class="flex gap-4 flex-wrap items-start mb-4">
