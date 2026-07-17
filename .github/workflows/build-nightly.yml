@@ -5,6 +5,10 @@ on:
     branches: [develop]
   workflow_dispatch:
 
+concurrency:
+  group: nightly-build
+  cancel-in-progress: true
+
 permissions:
   contents: write
 
@@ -54,6 +58,10 @@ jobs:
 
       - name: Install app dependencies
         run: npm install
+
+      - name: Set app version from commit
+        shell: bash
+        run: npm pkg set version="0.0.0-nightly.${GITHUB_SHA::7}"
 
       - uses: tauri-apps/tauri-action@v1
         env:
