@@ -108,6 +108,20 @@ fn format_reset_time(iso: Option<&str>) -> String {
     format_delta(reset_at - now)
 }
 
+// Builds a window's {used, remaining, resets_in} object. The API returns a
+// null/absent window when it has no activity yet (right after it resets, or
+// on a fresh app launch after a long idle gap) — treated as 0% used, not "no
+// data", so the tray icon actually drops back down instead of freezing at
+// whatever percentage it last rendered.
+fn window_json(utilization: Option<f64>, resets_at: Option<&str>) -> serde_json::Value {
+    let util = utilization.unwrap_or(0.0);
+    serde_json::json!({
+        "used": format!("{:.1}%", util),
+        "remaining": format!("{:.1}%", 100.0 - util),
+        "resets_in": format_reset_time(resets_at),
+    })
+}
+
 // Fetches the 5-hour/weekly usage windows from Anthropic's OAuth usage
 // endpoint, shaped like cclimits' own `--claude --json` output (trimmed to
 // the fields update_tray actually reads).
@@ -138,27 +152,18 @@ fn claude_usage(app: &tauri::AppHandle) -> serde_json::Value {
         }
     };
 
-    let window = |key: &str| -> Option<serde_json::Value> {
-        let w = data.get(key)?;
-        if w.is_null() {
-            return None;
-        }
-        let util = w["utilization"].as_f64().unwrap_or(0.0);
-        Some(serde_json::json!({
-            "used": format!("{:.1}%", util),
-            "remaining": format!("{:.1}%", 100.0 - util),
-            "resets_in": format_reset_time(w["resets_at"].as_str()),
-        }))
+    let window = |key: &str| -> serde_json::Value {
+        let w = data.get(key).filter(|w| !w.is_null());
+        window_json(
+            w.and_then(|w| w["utilization"].as_f64()),
+            w.and_then(|w| w["resets_at"].as_str()),
+        )
     };
 
     let mut result = serde_json::Map::new();
     result.insert("status".to_string(), serde_json::json!("ok"));
-    if let Some(v) = window("five_hour") {
-        result.insert("five_hour".to_string(), v);
-    }
-    if let Some(v) = window("seven_day") {
-        result.insert("seven_day".to_string(), v);
-    }
+    result.insert("five_hour".to_string(), window("five_hour"));
+    result.insert("seven_day".to_string(), window("seven_day"));
     if let Some(opus) = data.get("seven_day_opus").filter(|v| !v.is_null()) {
         let util = opus["utilization"].as_f64().unwrap_or(0.0);
         result.insert("opus".to_string(), serde_json::json!({ "used": format!("{:.1}%", util) }));
@@ -895,6 +900,18 @@ mod tests {
         assert_eq!(table["opus"], serde_json::json!({ "in": 5.0, "out": 25.0 }));
         assert_eq!(table["haiku"], serde_json::json!({ "in": 0.25, "out": 1.25 }));
         assert!(!table.contains_key("sonnet"));
+    }
+
+    #[test]
+    fn window_json_defaults_to_zero_when_window_absent() {
+        assert_eq!(
+            window_json(None, None),
+            serde_json::json!({ "used": "0.0%", "remaining": "100.0%", "resets_in": "N/A" })
+        );
+        assert_eq!(
+            window_json(Some(42.0), None),
+            serde_json::json!({ "used": "42.0%", "remaining": "58.0%", "resets_in": "N/A" })
+        );
     }
 
     #[test]
