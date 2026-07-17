@@ -61,7 +61,7 @@ jobs:
 
       - name: Set app version from commit
         shell: bash
-        run: npm pkg set version="0.0.0-nightly.${{ github.run_number }}"
+        run: npm pkg set version="0.0.0-${{ github.run_number }}"
 
       - uses: tauri-apps/tauri-action@v1
         env:
